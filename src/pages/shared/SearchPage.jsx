@@ -1,4 +1,4 @@
-import { Mic, Navigation, SlidersHorizontal } from 'lucide-react';
+import { BriefcaseBusiness, MapPin, Mic, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { LabourCard } from '../../components/cards/LabourCard';
@@ -11,7 +11,6 @@ import { PageSEO } from '../../components/common/PageSEO';
 import { SelectField } from '../../components/common/SelectField';
 import { SectionHeading } from '../../components/common/SectionHeading';
 import { AppShell } from '../../components/layout/AppShell';
-import { LabourMap } from '../../components/map/LabourMap';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useGeolocation } from '../../hooks/useGeolocation';
@@ -94,10 +93,38 @@ const SearchPage = () => {
   }, [debouncedFilters, geolocation.latitude, geolocation.longitude, shouldRedirectRole]);
 
   const recommended = useMemo(() => results.slice(0, 3), [results]);
-  const mapLabours = useMemo(
-    () => results.filter((labour) => labour.availability === 'Available'),
+  const availableResults = useMemo(
+    () =>
+      results
+        .filter((labour) => labour.availability === 'Available')
+        .sort((a, b) => {
+          if (a.distanceKm == null && b.distanceKm == null) {
+            return b.rating - a.rating;
+          }
+
+          if (a.distanceKm == null) {
+            return 1;
+          }
+
+          if (b.distanceKm == null) {
+            return -1;
+          }
+
+          return a.distanceKm - b.distanceKm;
+        }),
     [results]
   );
+  const visibleServices = useMemo(() => {
+    const query = filters.query.trim().toLowerCase();
+
+    return workCategories.filter((category) => {
+      if (!query) {
+        return true;
+      }
+
+      return category.toLowerCase().includes(query);
+    });
+  }, [filters.query]);
   const bookingSearchParams = useMemo(() => {
     const nextParams = new URLSearchParams();
 
@@ -198,7 +225,7 @@ const SearchPage = () => {
               />
               <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
                 <div className="flex items-center gap-2 font-semibold">
-                  <Navigation size={16} />
+                  <MapPin size={16} />
                   Nearby labour
                 </div>
                 <p className="mt-2">
@@ -212,19 +239,44 @@ const SearchPage = () => {
             </Card>
 
             <div className="space-y-8">
-              <LabourMap
-                clientLocation={
-                  geolocation.latitude !== null && geolocation.longitude !== null
-                    ? { latitude: geolocation.latitude, longitude: geolocation.longitude }
-                    : null
-                }
-                labours={mapLabours}
-                selectedLabourId={selectedLabour?.id}
-                onSelectLabour={setSelectedLabour}
-                searching={searching}
-                title="Search result map"
-                emptyLabel="Available labour pins appear here after search"
-              />
+              <Card>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-slate-950 dark:text-white">
+                      Available services
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                      Choose a service first, then request the nearest available worker.
+                    </p>
+                  </div>
+                  <Badge tone="blue">{visibleServices.length} services</Badge>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {visibleServices.map((service) => (
+                    <button
+                      key={service}
+                      type="button"
+                      onClick={() => {
+                        setFilters((prev) => ({ ...prev, category: service, query: service }));
+                        setSelectedLabour(null);
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        filters.category === service
+                          ? 'border-brand-500 bg-brand-50'
+                          : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-100 text-brand-700">
+                          <BriefcaseBusiness size={17} />
+                        </span>
+                        <span className="font-semibold text-slate-950">{service}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </Card>
 
               {selectedLabour ? (
                 <Card className="border-brand-200 bg-brand-50/60">
@@ -255,19 +307,28 @@ const SearchPage = () => {
               ) : null}
 
               <div>
-                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">AI recommendations</h3>
+                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">Nearest available labour</h3>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Ranked using skill match, rating, price fit, verification, and distance.
+                  Pick one worker from this service. The closest workers are shown first when GPS is available.
                 </p>
                 <div className="mt-5 grid gap-5 xl:grid-cols-2">
-                  {recommended.map((labour) => (
-                    <LabourCard key={labour.id} labour={labour} showMatchScore />
-                  ))}
+                  {availableResults.length ? (
+                    availableResults.map((labour) => (
+                      <LabourCard key={labour.id} labour={labour} showMatchScore />
+                    ))
+                  ) : (
+                    <div className="xl:col-span-2">
+                      <EmptyState
+                        title="Service not available in this locality"
+                        description="Try another service or allow location access so WorkLink can search nearby labour more accurately."
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div>
-                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">All matching labour</h3>
+                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">Recommended profiles</h3>
                 <div className="mt-5 grid gap-5 xl:grid-cols-2">
                   {results.length ? (
                     results.map((labour) => <LabourCard key={labour.id} labour={labour} showMatchScore />)

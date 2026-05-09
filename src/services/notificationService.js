@@ -10,6 +10,10 @@ import {
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockNotifications } from '../data/mockData';
 
+const debugNotifications = (message, payload = {}) => {
+  console.debug(`[WorkLink notifications] ${message}`, payload);
+};
+
 const sortNotificationsByCreatedAtDesc = (items) =>
   [...items].sort((a, b) => {
     const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
@@ -64,13 +68,30 @@ export const subscribeNotifications = (userId, onNext, onError) => {
 
 export const createNotification = async (payload) => {
   if (!isFirebaseConfigured || !db) {
+    debugNotifications('skipped create because Firebase is not configured', {
+      userId: payload?.userId,
+      bookingId: payload?.bookingId
+    });
     return null;
   }
+
+  debugNotifications('create requested', {
+    userId: payload.userId,
+    senderId: payload.senderId,
+    bookingId: payload.bookingId,
+    type: payload.type
+  });
 
   const reference = await addDoc(collection(db, 'notifications'), {
     ...payload,
     createdAt: serverTimestamp(),
     read: false
+  });
+
+  debugNotifications('create completed', {
+    id: reference.id,
+    userId: payload.userId,
+    bookingId: payload.bookingId
   });
 
   return reference.id;

@@ -12,6 +12,10 @@ import {
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockBookings } from '../data/mockData';
 
+const debugBookingService = (message, payload = {}) => {
+  console.debug(`[WorkLink booking service] ${message}`, payload);
+};
+
 const sortBookingsByAppointmentDesc = (items) =>
   [...items].sort((a, b) => {
     const dateA = a.appointmentAt?.toDate ? a.appointmentAt.toDate() : new Date(a.appointmentAt || 0);
@@ -81,6 +85,12 @@ export const createBooking = async (payload) => {
 
   const bookingRef = doc(collection(db, 'bookings'));
   const labourRef = doc(db, 'labours', payload.labourId);
+  debugBookingService('create booking transaction started', {
+    bookingId: bookingRef.id,
+    clientId: payload.clientId,
+    labourId: payload.labourId,
+    serviceType: payload.serviceType
+  });
 
   await runTransaction(db, async (transaction) => {
     const labourSnapshot = await transaction.get(labourRef);
@@ -104,6 +114,11 @@ export const createBooking = async (payload) => {
     });
   });
 
+  debugBookingService('create booking transaction completed', {
+    bookingId: bookingRef.id,
+    labourId: payload.labourId
+  });
+
   return bookingRef.id;
 };
 
@@ -111,6 +126,12 @@ export const updateBookingStatus = async (bookingId, status, extra = {}) => {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase must be configured before updating bookings.');
   }
+
+  debugBookingService('update status requested', {
+    bookingId,
+    status,
+    extraKeys: Object.keys(extra)
+  });
 
   await updateDoc(doc(db, 'bookings', bookingId), {
     status,
@@ -128,6 +149,7 @@ export const startBookingWork = async ({ bookingId, labourId, otp }) => {
   const bookingRef = doc(db, 'bookings', bookingId);
   const labourRef = doc(db, 'labours', labourId);
   const userRef = doc(db, 'users', labourId);
+  debugBookingService('start work transaction started', { bookingId, labourId });
 
   await runTransaction(db, async (transaction) => {
     const bookingSnapshot = await transaction.get(bookingRef);
@@ -180,6 +202,7 @@ export const startBookingWork = async ({ bookingId, labourId, otp }) => {
       { merge: true }
     );
   });
+  debugBookingService('start work transaction completed', { bookingId, labourId });
 };
 
 export const completeBookingWork = async ({ bookingId, labourId }) => {
@@ -190,6 +213,7 @@ export const completeBookingWork = async ({ bookingId, labourId }) => {
   const bookingRef = doc(db, 'bookings', bookingId);
   const labourRef = doc(db, 'labours', labourId);
   const userRef = doc(db, 'users', labourId);
+  debugBookingService('complete work transaction started', { bookingId, labourId });
 
   await runTransaction(db, async (transaction) => {
     const bookingSnapshot = await transaction.get(bookingRef);
@@ -236,4 +260,5 @@ export const completeBookingWork = async ({ bookingId, labourId }) => {
       { merge: true }
     );
   });
+  debugBookingService('complete work transaction completed', { bookingId, labourId });
 };

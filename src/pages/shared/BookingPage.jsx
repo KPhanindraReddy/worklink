@@ -1,10 +1,14 @@
 import {
+  BriefcaseBusiness,
   CheckCircle2,
   Clock3,
   LocateFixed,
+  LoaderCircle,
   MapPin,
   MessageCircle,
+  Navigation,
   Phone,
+  RotateCcw,
   Search,
   Send,
   UserCheck
@@ -20,18 +24,21 @@ import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { TextAreaField } from '../../components/common/TextAreaField';
 import { AppShell } from '../../components/layout/AppShell';
-import { LabourMap } from '../../components/map/LabourMap';
 import { useAuth } from '../../context/AuthContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { createBooking, subscribeBookingsForUser } from '../../services/bookingService';
 import { ensureConversation } from '../../services/chatService';
 import { getLabourById, searchLabours } from '../../services/labourService';
 import { createNotification } from '../../services/notificationService';
+import { workCategories } from '../../utils/constants';
 import { formatCurrency, formatDate, formatDistanceKm } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
 const generateStartOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+const debugBooking = (message, payload = {}) => {
+  console.debug(`[WorkLink booking] ${message}`, payload);
+};
 
 const getBookingTime = (booking) =>
   booking.appointmentAt
@@ -57,6 +64,7 @@ const BookingPage = () => {
   const [searched, setSearched] = useState(false);
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [autoRetriedRejectionId, setAutoRetriedRejectionId] = useState('');
   const [formValues, setFormValues] = useState({
     serviceName: initialService,
     serviceDetails: '',
@@ -122,15 +130,58 @@ const BookingPage = () => {
     () => bookings.filter((booking) => activeWorkStatuses.includes(booking.status)),
     [bookings]
   );
+  const pendingBookings = useMemo(
+    () => bookings.filter((booking) => booking.status === 'pending'),
+    [bookings]
+  );
+  const rejectedBookings = useMemo(
+    () => bookings.filter((booking) => booking.status === 'rejected'),
+    [bookings]
+  );
   const inProgressBooking = useMemo(
     () => bookings.find((booking) => booking.status === 'in_progress') ?? null,
     [bookings]
   );
   const clientIsBusy = Boolean(inProgressBooking);
+  const currentService = formValues.serviceName.trim();
+  const serviceBookingIds = useMemo(
+    () =>
+      new Set(
+        bookings
+          .filter((booking) => booking.serviceType?.toLowerCase() === currentService.toLowerCase())
+          .map((booking) => booking.labourId)
+      ),
+    [bookings, currentService]
+  );
+  const sortedAvailableLabours = useMemo(
+    () =>
+      [...availableLabours].sort((a, b) => {
+        if (a.distanceKm == null && b.distanceKm == null) {
+          return b.rating - a.rating;
+        }
+
+        if (a.distanceKm == null) {
+          return 1;
+        }
+
+        if (b.distanceKm == null) {
+          return -1;
+        }
+
+        return a.distanceKm - b.distanceKm;
+      }),
+    [availableLabours]
+  );
+  const alternativeLabours = useMemo(
+    () => sortedAvailableLabours.filter((labour) => !serviceBookingIds.has(labour.id)),
+    [serviceBookingIds, sortedAvailableLabours]
+  );
+  const hasPendingRequest = pendingBookings.length > 0;
 
   const canSearch = Boolean(formValues.serviceName.trim() && formValues.address.trim());
   const canRequest = Boolean(
     !clientIsBusy &&
+      !hasPendingRequest &&
       selectedLabour &&
       selectedLabour.availability === 'Available' &&
       formValues.serviceName.trim() &&
@@ -145,25 +196,61 @@ const BookingPage = () => {
       [key]: value
     }));
 
-  const handleSearchLabour = async () => {
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    debugBooking('client bookings updated', {
+      userId: currentUser.uid,
+      pending: pendingBookings.length,
+      active: activeBookings.length,
+      rejected: rejectedBookings.length,
+      total: bookings.length
+    });
+  }, [activeBookings.length, bookings.length, currentUser, pendingBookings.length, rejectedBookings.length]);
+
+  const handleServiceSelect = async (service) => {
+    setSelectedLabour(null);
+    setAvailableLabours([]);
+    setSearched(false);
+    updateFormValue('serviceName', service);
+
+    if (!formValues.address.trim()) {
+      toast.error('Add your address before checking labour availability.');
+      return;
+    }
+
+    await handleSearchLabour(service);
+  };
+
+  const handleSearchLabour = async (serviceOverride) => {
     if (clientIsBusy) {
       toast.error('Complete your current in-progress work before requesting another labour.');
       return;
     }
 
-    if (!canSearch) {
+    const serviceName = serviceOverride || formValues.serviceName;
+
+    if (!serviceName.trim() || !formValues.address.trim()) {
       toast.error('Add service name and address before searching labour.');
       return;
     }
 
     setSearching(true);
     setSearched(true);
+    debugBooking('search started', {
+      serviceName,
+      address: formValues.address,
+      clientLocation,
+      budget: formValues.budget
+    });
 
     try {
       const results = await searchLabours(
         {
-          skill: formValues.serviceName,
-          category: initialCategory,
+          skill: serviceName,
+          category: workCategories.includes(serviceName) ? serviceName : initialCategory,
           availability: 'Available',
           maxPrice: formValues.budget
         },
@@ -171,17 +258,61 @@ const BookingPage = () => {
       );
 
       setAvailableLabours(results);
-      setSelectedLabour((prev) => results.find((item) => item.id === prev?.id) ?? results[0] ?? null);
+      setSelectedLabour((prev) => {
+        const previousStillAvailable = results.find(
+          (item) => item.id === prev?.id && !serviceBookingIds.has(item.id)
+        );
+        const nearestUntried = results.find((item) => !serviceBookingIds.has(item.id));
+
+        return previousStillAvailable ?? nearestUntried ?? results[0] ?? null;
+      });
+      debugBooking('search completed', {
+        serviceName,
+        resultCount: results.length,
+        nearestLabour: results[0]?.fullName ?? null
+      });
 
       if (!results.length) {
-        toast.error('No available labour matched this service right now.');
+        toast.error(`${serviceName} is not available in your locality right now.`);
       }
     } catch (error) {
+      console.error('[WorkLink booking] search failed', error);
       toast.error(getFirebaseErrorMessage(error));
     } finally {
       setSearching(false);
     }
   };
+
+  useEffect(() => {
+    const latestRejected = rejectedBookings.find(
+      (booking) => booking.serviceType?.toLowerCase() === currentService.toLowerCase()
+    );
+
+    if (
+      !latestRejected ||
+      latestRejected.id === autoRetriedRejectionId ||
+      hasPendingRequest ||
+      searching ||
+      !formValues.address.trim()
+    ) {
+      return;
+    }
+
+    setAutoRetriedRejectionId(latestRejected.id);
+    debugBooking('labour rejected request, checking next available labour', {
+      rejectedBookingId: latestRejected.id,
+      rejectedLabourId: latestRejected.labourId,
+      serviceType: latestRejected.serviceType
+    });
+    handleSearchLabour(latestRejected.serviceType);
+  }, [
+    autoRetriedRejectionId,
+    currentService,
+    formValues.address,
+    hasPendingRequest,
+    rejectedBookings,
+    searching
+  ]);
 
   const handleOpenChat = async (labour) => {
     if (!currentUser || !labour?.id) {
@@ -227,6 +358,13 @@ const BookingPage = () => {
     }
 
     setSubmitting(true);
+    debugBooking('request submit started', {
+      labourId: selectedLabour.id,
+      labourName: selectedLabour.fullName,
+      serviceType: formValues.serviceName,
+      location: formValues.address,
+      clientLocation
+    });
 
     try {
       const appointmentAt = `${selectedDate} ${selectedSlot}`;
@@ -265,12 +403,19 @@ const BookingPage = () => {
         console.warn('WorkLink notification delivery skipped:', notificationError);
       }
 
+      debugBooking('request submitted', {
+        bookingId,
+        labourId: selectedLabour.id,
+        notificationDelivered
+      });
+
       toast.success(
         notificationDelivered
           ? 'Service request sent. Contact unlocks after labour accepts.'
           : 'Service request sent. Open the labour dashboard and notifications after Firestore rules are deployed.'
       );
     } catch (error) {
+      console.error('[WorkLink booking] request submit failed', error);
       toast.error(getFirebaseErrorMessage(error));
     } finally {
       setSubmitting(false);
@@ -306,29 +451,77 @@ const BookingPage = () => {
                   </Badge>
                 </div>
 
-                <div className="mt-6">
-                  <LabourMap
-                    clientLocation={clientLocation}
-                    labours={availableLabours}
-                    selectedLabourId={selectedLabour?.id}
-                    onSelectLabour={setSelectedLabour}
-                    searching={searching}
-                    title="Service search map"
-                    emptyLabel={
-                      searched
-                        ? 'No available labour found for this service yet'
-                        : 'Search service to show available labour pins'
-                    }
-                  />
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {workCategories.map((service) => (
+                    <button
+                      key={service}
+                      type="button"
+                      onClick={() => handleServiceSelect(service)}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        formValues.serviceName === service
+                          ? 'border-brand-500 bg-brand-50'
+                          : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-100 text-brand-700">
+                          <BriefcaseBusiness size={17} />
+                        </span>
+                        <span className="font-semibold text-slate-950">{service}</span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </Card>
+
+              {pendingBookings.length ? (
+                <Card className="rounded-[28px] border-brand-200 bg-brand-50 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">
+                        Requesting
+                      </p>
+                      <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+                        Waiting for labour response
+                      </h2>
+                      <p className="mt-2 text-sm font-medium leading-6 text-slate-700">
+                        {pendingBookings[0].labourName} received your {pendingBookings[0].serviceType} request.
+                      </p>
+                    </div>
+                    <div className="grid h-20 w-20 place-items-center rounded-full border-4 border-white bg-brand-600 text-white shadow-glow">
+                      <LoaderCircle size={30} className="animate-spin" />
+                    </div>
+                  </div>
+                </Card>
+              ) : null}
+
+              {rejectedBookings.length && alternativeLabours.length ? (
+                <Card className="rounded-[28px] border-amber-200 bg-amber-50 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-amber-950">Previous labour rejected</h2>
+                      <p className="mt-2 text-sm font-medium leading-6 text-amber-900">
+                        Pick the next nearest available worker for this service.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setSelectedLabour(alternativeLabours[0])}
+                    >
+                      <RotateCcw size={15} />
+                      Try next labour
+                    </Button>
+                  </div>
+                </Card>
+              ) : null}
 
               {selectedLabour ? (
                 <Card className="rounded-[28px] border-brand-200 bg-brand-50/60 p-5">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">
-                        Requesting now
+                        Selected labour
                       </p>
                       <h2 className="mt-2 text-2xl font-semibold text-slate-950">
                         {selectedLabour.fullName}
@@ -417,9 +610,9 @@ const BookingPage = () => {
                   </div>
 
                   <div className="mt-6 flex flex-wrap gap-3">
-                    <Button type="button" onClick={handleSearchLabour} disabled={searching || !canSearch || clientIsBusy}>
+                    <Button type="button" onClick={() => handleSearchLabour()} disabled={searching || !canSearch || clientIsBusy}>
                       <Search size={16} />
-                      {searching ? 'Searching...' : 'Search labour'}
+                      {searching ? 'Checking...' : 'Check available labour'}
                     </Button>
                     {selectedLabour ? (
                       <Badge tone="blue" className="px-4 py-2">
@@ -438,7 +631,7 @@ const BookingPage = () => {
 
                 <Button type="submit" size="lg" className="w-full" disabled={submitting || !canRequest}>
                   <Send size={17} />
-                  {submitting ? 'Sending request...' : 'Send request to selected labour'}
+                  {submitting ? 'Sending request...' : hasPendingRequest ? 'Waiting for labour response' : 'Send request to selected labour'}
                 </Button>
               </form>
             </div>
@@ -452,20 +645,23 @@ const BookingPage = () => {
                       Pick one worker after search.
                     </p>
                   </div>
-                  <Badge tone="emerald">{availableLabours.length} found</Badge>
+                  <Badge tone="emerald">{sortedAvailableLabours.length} found</Badge>
                 </div>
 
                 <div className="mt-5 space-y-4">
-                  {availableLabours.length ? (
-                    availableLabours.map((labour) => (
+                  {sortedAvailableLabours.length ? (
+                    sortedAvailableLabours.map((labour) => (
                       <button
                         key={labour.id}
                         type="button"
                         onClick={() => setSelectedLabour(labour)}
+                        disabled={hasPendingRequest}
                         className={`w-full rounded-3xl border p-4 text-left transition ${
                           selectedLabour?.id === labour.id
                             ? 'border-brand-500 bg-brand-50'
-                            : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
+                            : serviceBookingIds.has(labour.id)
+                              ? 'border-amber-200 bg-amber-50'
+                              : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex gap-4">
@@ -477,7 +673,9 @@ const BookingPage = () => {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <p className="font-semibold text-slate-950">{labour.fullName}</p>
-                              <Badge tone="emerald">{labour.availability}</Badge>
+                              <Badge tone={serviceBookingIds.has(labour.id) ? 'amber' : 'emerald'}>
+                                {serviceBookingIds.has(labour.id) ? 'Tried' : labour.availability}
+                              </Badge>
                             </div>
                             <p className="mt-1 text-sm font-medium text-slate-700">{labour.category}</p>
                             <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
@@ -492,7 +690,7 @@ const BookingPage = () => {
                   ) : (
                     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm font-medium leading-7 text-slate-700">
                       {searched
-                        ? 'No available labour found for this request. Try a broader service name or budget.'
+                        ? `${formValues.serviceName || 'This service'} is not available in your locality right now.`
                         : 'Search labour after adding service and address.'}
                     </div>
                   )}
@@ -544,6 +742,17 @@ const BookingPage = () => {
                           </div>
                         )}
                         <div className="mt-4 flex flex-wrap gap-3">
+                          <Button
+                            as="a"
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.location || '')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Navigation size={15} />
+                            View route
+                          </Button>
                           <Button
                             as="a"
                             href={booking.labourPhoneNumber ? `tel:${booking.labourPhoneNumber}` : undefined}

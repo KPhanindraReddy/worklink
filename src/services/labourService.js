@@ -17,6 +17,10 @@ import { recommendLabours } from '../utils/recommendations';
 import { workCategories } from '../utils/constants';
 
 const SEARCH_RESULT_LIMIT = 80;
+const debugLabourSearch = (message, payload = {}) => {
+  console.debug(`[WorkLink labour search] ${message}`, payload);
+};
+
 const fetchLabourCandidates = async (filters, resolvedCategory) => {
   const attempts = [
     () => {
@@ -59,9 +63,21 @@ const fetchLabourCandidates = async (filters, resolvedCategory) => {
         continue;
       }
 
+      debugLabourSearch('candidate query succeeded', {
+        filters,
+        resolvedCategory,
+        count: snapshot.size
+      });
+
       return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
     } catch (error) {
       lastError = error;
+      console.warn('[WorkLink labour search] candidate query failed', {
+        code: error?.code,
+        message: error?.message,
+        filters,
+        resolvedCategory
+      });
 
       if (error?.code !== 'failed-precondition') {
         throw error;
@@ -114,6 +130,12 @@ export const searchLabours = async (filters = {}, origin) => {
 
   const resolvedCategory = filters.category || resolveCategoryFromSkill(filters.skill);
   const items = await fetchLabourCandidates(filters, resolvedCategory);
+  debugLabourSearch('ranking candidates', {
+    filters,
+    resolvedCategory,
+    origin,
+    candidateCount: items.length
+  });
 
   return recommendLabours(items, filters, origin).filter((labour) => {
     const matchesSkill = filters.skill

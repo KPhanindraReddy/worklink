@@ -1,5 +1,69 @@
 import { clamp } from './formatters';
 
+const normalizeValue = (value) => String(value ?? '').trim().toLowerCase();
+
+const toSearchableString = (value) => {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return normalizeValue(value);
+  }
+
+  if (value && typeof value === 'object') {
+    return normalizeValue(
+      value.title || value.workType || value.serviceType || value.location || value.name || ''
+    );
+  }
+
+  return '';
+};
+
+const toSearchableList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => toSearchableString(item)).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => normalizeValue(item))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+export const labourMatchesServiceQuery = (labour, serviceQuery = '') => {
+  const normalizedQuery = normalizeValue(serviceQuery);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchableValues = [
+    normalizeValue(labour.category),
+    normalizeValue(labour.about),
+    normalizeValue(labour.fullName),
+    ...toSearchableList(labour.skills),
+    ...toSearchableList(labour.previousWorkHistory)
+  ].filter(Boolean);
+
+  return searchableValues.some(
+    (value) => value.includes(normalizedQuery) || normalizedQuery.includes(value)
+  );
+};
+
+export const labourMatchesCategory = (labour, category = '') => {
+  const normalizedCategory = normalizeValue(category);
+
+  if (!normalizedCategory) {
+    return true;
+  }
+
+  return (
+    normalizeValue(labour.category) === normalizedCategory ||
+    labourMatchesServiceQuery(labour, normalizedCategory)
+  );
+};
+
 export const calculateHaversineDistance = (origin, target) => {
   if (
     origin?.latitude === undefined ||
@@ -26,11 +90,11 @@ export const calculateHaversineDistance = (origin, target) => {
 export const calculateMatchScore = (labour, filters = {}, origin) => {
   let score = 45;
 
-  if (filters.skill && labour.skills?.some((item) => item.toLowerCase().includes(filters.skill.toLowerCase()))) {
+  if (filters.skill && labourMatchesServiceQuery(labour, filters.skill)) {
     score += 18;
   }
 
-  if (filters.category && labour.category === filters.category) {
+  if (filters.category && labourMatchesCategory(labour, filters.category)) {
     score += 15;
   }
 

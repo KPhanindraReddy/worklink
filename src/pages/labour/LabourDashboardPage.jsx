@@ -478,7 +478,7 @@ const LabourDashboardPage = () => {
                     {dashboardProfile.fullName}
                   </h1>
                   <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-                    Keep your profile active, manage appointment requests, update availability, and turn finished work into repeat trust with reviews and history.
+                    Manage requests, availability, and active work.
                   </p>
                   <div className="mt-6 flex flex-wrap gap-2">
                     <Badge tone="blue">

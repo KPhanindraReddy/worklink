@@ -13,7 +13,11 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockLabours } from '../data/mockData';
-import { recommendLabours } from '../utils/recommendations';
+import {
+  labourMatchesCategory,
+  labourMatchesServiceQuery,
+  recommendLabours
+} from '../utils/recommendations';
 import { workCategories } from '../utils/constants';
 
 const SEARCH_RESULT_LIMIT = 80;
@@ -22,6 +26,7 @@ const debugLabourSearch = (message, payload = {}) => {
 };
 
 const fetchLabourCandidates = async (filters, resolvedCategory) => {
+  const shouldUseCategoryConstraint = Boolean(resolvedCategory && !filters.skill);
   const attempts = [
     () => {
       const constraints = [];
@@ -30,7 +35,7 @@ const fetchLabourCandidates = async (filters, resolvedCategory) => {
         constraints.push(where('availability', '==', filters.availability));
       }
 
-      if (resolvedCategory) {
+      if (shouldUseCategoryConstraint) {
         constraints.push(where('category', '==', resolvedCategory));
       }
 
@@ -138,19 +143,18 @@ export const searchLabours = async (filters = {}, origin) => {
   });
 
   return recommendLabours(items, filters, origin).filter((labour) => {
-    const matchesSkill = filters.skill
-      ? labour.skills?.some((entry) =>
-          entry.toLowerCase().includes(filters.skill.toLowerCase())
-        )
-      : true;
-    const matchesCategory = filters.category ? labour.category === filters.category : true;
+    const matchesSkill = filters.skill ? labourMatchesServiceQuery(labour, filters.skill) : true;
+    const matchesCategory = filters.category ? labourMatchesCategory(labour, filters.category) : true;
+    const matchesService = filters.skill && filters.category
+      ? matchesSkill || matchesCategory
+      : matchesSkill && matchesCategory;
     const matchesPrice = filters.maxPrice ? labour.dailyWage <= Number(filters.maxPrice) : true;
     const matchesExperience = filters.minExperience
       ? labour.experienceYears >= Number(filters.minExperience)
       : true;
     const matchesRating = filters.minRating ? labour.rating >= Number(filters.minRating) : true;
 
-    return matchesSkill && matchesCategory && matchesPrice && matchesExperience && matchesRating;
+    return matchesService && matchesPrice && matchesExperience && matchesRating;
   }).slice(0, SEARCH_RESULT_LIMIT);
 };
 

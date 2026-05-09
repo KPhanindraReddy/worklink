@@ -16,11 +16,15 @@ const linkClassName = ({ isActive }) =>
       : 'text-slate-600 hover:text-slate-950'
   );
 
+const getProfileInitial = (userProfile, currentUser) =>
+  (userProfile?.fullName || currentUser?.displayName || 'U').trim().charAt(0).toUpperCase();
+
 export const Navbar = () => {
   const { t } = useTranslation();
   const { currentUser, userProfile, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const primaryPath = currentUser ? routeByRole(userProfile?.role) : '/';
+  const profileInitial = getProfileInitial(userProfile, currentUser);
 
   const baseLinks = currentUser ? [] : [{ to: '/', label: t('nav.home') }];
 
@@ -72,9 +76,27 @@ export const Navbar = () => {
         <div className="hidden items-center gap-2 lg:flex">
           <LanguageSwitcher />
           {currentUser ? (
-            <Button variant="outline" onClick={logout}>
-              Logout
-            </Button>
+            <>
+              <Link
+                to="/settings"
+                className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-2 py-1 pr-4 shadow-sm transition hover:border-brand-300"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">
+                  {profileInitial}
+                </span>
+                <span className="text-left">
+                  <span className="block max-w-[140px] truncate text-sm font-semibold text-slate-950">
+                    {userProfile?.fullName || 'Profile'}
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    {userProfile?.role || 'Account'}
+                  </span>
+                </span>
+              </Link>
+              <Button variant="outline" onClick={logout}>
+                Logout
+              </Button>
+            </>
           ) : (
             <Button as={Link} to="/auth" variant="primary">
               {t('nav.login')}
@@ -82,15 +104,26 @@ export const Navbar = () => {
           )}
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="lg:hidden"
-          onClick={() => setIsOpen((prev) => !prev)}
-          aria-label="Toggle navigation"
-        >
-          {isOpen ? <X size={18} /> : <Menu size={18} />}
-        </Button>
+        <div className="flex items-center gap-2 lg:hidden">
+          {currentUser ? (
+            <Link
+              to="/settings"
+              className="grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-glow"
+              onClick={() => setIsOpen(false)}
+              aria-label="Open profile"
+            >
+              {profileInitial}
+            </Link>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen((prev) => !prev)}
+            aria-label="Toggle navigation"
+          >
+            {isOpen ? <X size={18} /> : <Menu size={18} />}
+          </Button>
+        </div>
       </div>
 
       {isOpen ? (
@@ -110,6 +143,23 @@ export const Navbar = () => {
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
           </div>
+          {currentUser ? (
+            <Link
+              to="/settings"
+              className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">
+                {profileInitial}
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-slate-950">
+                  {userProfile?.fullName || 'Profile'}
+                </span>
+                <span className="block text-xs text-slate-500">{userProfile?.role || 'Account'}</span>
+              </span>
+            </Link>
+          ) : null}
           {currentUser ? (
             <Button variant="outline" className="w-full" onClick={logout}>
               Logout

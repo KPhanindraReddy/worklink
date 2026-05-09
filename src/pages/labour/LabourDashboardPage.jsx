@@ -672,12 +672,12 @@ const LabourDashboardPage = () => {
                       .map((booking) => (
                         <div key={booking.id} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
+                          <div>
                               <h3 className="font-semibold text-slate-950 dark:text-white">
                                 {booking.serviceType}
                               </h3>
                               <p className="text-sm text-slate-500 dark:text-slate-400">
-                                {booking.clientName} - {booking.location}
+                                {booking.clientName}
                               </p>
                             </div>
                             <Badge tone="amber">Pending</Badge>
@@ -693,38 +693,11 @@ const LabourDashboardPage = () => {
                               {booking.serviceDetails}
                             </p>
                           ) : null}
-                          <div className="mt-4 overflow-hidden rounded-3xl border border-slate-300 bg-[#f4fbf7] p-4">
-                            <div className="relative h-40 overflow-hidden rounded-2xl bg-white">
-                              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(203,213,225,0.3)_1px,transparent_1px),linear-gradient(rgba(203,213,225,0.3)_1px,transparent_1px)] bg-[length:44px_44px]" />
-                              <div className="absolute left-[-10%] top-[38%] h-9 w-[120%] rotate-[-12deg] bg-slate-100 shadow-sm" />
-                              <div className="absolute left-[46%] top-[-20%] h-[140%] w-9 rotate-[8deg] bg-slate-100 shadow-sm" />
-                              <div className="absolute right-[14%] top-[18%] h-12 w-24 rounded-full bg-sky-200/70" />
-                              <div className="absolute left-[12%] bottom-[16%] h-14 w-28 rounded-full bg-emerald-200/70" />
-                              <div className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-soft">
-                                <MapPinned size={22} />
-                              </div>
-                            </div>
-                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-950">Client destination</p>
-                                <p className="mt-1 text-xs font-medium text-slate-600">
-                                  {booking.coordinates?.latitude != null
-                                    ? `${booking.coordinates.latitude.toFixed(5)}, ${booking.coordinates.longitude.toFixed(5)}`
-                                    : booking.location}
-                                </p>
-                              </div>
-                              <Button
-                                as="a"
-                                href={buildDirectionsUrl(booking)}
-                                target="_blank"
-                                rel="noreferrer"
-                                size="sm"
-                                className="w-full sm:w-auto"
-                              >
-                                <Navigation size={15} />
-                                Track route
-                              </Button>
-                            </div>
+                          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                            <p className="font-semibold text-slate-950">Location unlocks after acceptance</p>
+                            <p className="mt-2 leading-6">
+                              Accept this request to view the client address, live route, and the OTP start step.
+                            </p>
                           </div>
                           <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
                             <Button

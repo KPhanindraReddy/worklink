@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, ShieldCheck, Star } from 'lucide-react';
+import { CalendarDays, MapPin, ShieldCheck, Star } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { Card } from '../common/Card';
@@ -12,11 +12,12 @@ const availabilityTone = {
   Offline: 'slate'
 };
 
-export const LabourCard = ({ labour, showMatchScore = false }) => {
+export const LabourCard = ({ labour, showMatchScore = false, onQuickBook }) => {
   const { userProfile } = useAuth();
   const isClient = userProfile?.role === 'client';
   const isLabour = userProfile?.role === 'labour';
   const isAvailable = labour.availability === 'Available';
+  const canQuickBook = Boolean(isClient && isAvailable && onQuickBook);
 
   return (
     <Card className="flex h-full flex-col gap-4">
@@ -78,6 +79,16 @@ export const LabourCard = ({ labour, showMatchScore = false }) => {
         ) : isClient && !isAvailable ? (
           <Button type="button" variant="outline" className="flex-1" disabled>
             {labour.availability}
+          </Button>
+        ) : canQuickBook ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={() => onQuickBook(labour)}
+          >
+            <CalendarDays size={15} />
+            Book now
           </Button>
         ) : (
           <Button

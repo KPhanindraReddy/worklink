@@ -1,7 +1,8 @@
 import { Link, useParams } from 'react-router-dom';
-import { MapPin, Phone, ShieldCheck, Star } from 'lucide-react';
+import { CalendarDays, MapPin, Phone, ShieldCheck, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { LabourCard } from '../../components/cards/LabourCard';
+import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -18,6 +19,7 @@ const LabourProfilePage = () => {
   const { labourId } = useParams();
   const { currentUser, userProfile } = useAuth();
   const [labour, setLabour] = useState(null);
+  const [selectedQuickBookLabour, setSelectedQuickBookLabour] = useState(null);
 
   useEffect(() => {
     getLabourById(labourId).then(setLabour);
@@ -94,8 +96,9 @@ const LabourProfilePage = () => {
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   {isClient ? (
-                    <Button as={Link} to={`/booking?labourId=${labour.id}`}>
-                      Book appointment
+                    <Button type="button" onClick={() => setSelectedQuickBookLabour(labour)}>
+                      <CalendarDays size={16} />
+                      Book now
                     </Button>
                   ) : currentUser ? (
                     <Button type="button" disabled>
@@ -111,11 +114,7 @@ const LabourProfilePage = () => {
                   </Button>
                   <Button
                     as="a"
-                    href={
-                      canRevealContact
-                        ? `tel:${labour.phoneNumber}`
-                        : undefined
-                    }
+                    href={canRevealContact ? `tel:${labour.phoneNumber}` : undefined}
                     variant="outline"
                     className={!canRevealContact ? 'pointer-events-none opacity-60' : ''}
                   >
@@ -124,7 +123,7 @@ const LabourProfilePage = () => {
                   </Button>
                 </div>
                 <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-                  Direct phone and WhatsApp access unlock when both accounts are verified.
+                  Direct phone access unlocks when both accounts are verified.
                 </p>
               </div>
             </div>
@@ -132,7 +131,7 @@ const LabourProfilePage = () => {
 
           <div className="space-y-6">
             <Card>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Skills & languages</h2>
+              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Skills and languages</h2>
               <div className="mt-4 flex flex-wrap gap-2">
                 {labour.skills?.map((item) => (
                   <Badge key={item} tone="slate">
@@ -182,7 +181,7 @@ const LabourProfilePage = () => {
             <SectionHeading
               eyebrow="Work history"
               title="Completed jobs"
-              description="Before-and-after capable history structure with work type, amount paid, and location metadata."
+              description="Recent jobs with payment and location details."
             />
             <div className="mt-6 space-y-4">
               {(labour.previousWorkHistory ?? []).map((job) => (
@@ -194,7 +193,7 @@ const LabourProfilePage = () => {
                     </p>
                   </div>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                    {job.location} • {job.date}
+                    {job.location} - {job.date}
                   </p>
                 </div>
               ))}
@@ -208,7 +207,7 @@ const LabourProfilePage = () => {
           <SectionHeading
             eyebrow="Reviews"
             title="Client feedback and ratings"
-            description="Ratings, comments, and repeat trust are core to WorkLink’s profile credibility system."
+            description="Ratings and comments from recent clients."
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
             {(labour.reviews ?? []).map((review) => (
@@ -237,12 +236,24 @@ const LabourProfilePage = () => {
             />
             <div className="mt-8 grid gap-5 lg:grid-cols-2">
               {relatedLabours.map((item) => (
-                <LabourCard key={item.id} labour={item} />
+                <LabourCard
+                  key={item.id}
+                  labour={item}
+                  onQuickBook={isClient ? setSelectedQuickBookLabour : undefined}
+                />
               ))}
             </div>
           </div>
         </section>
       ) : null}
+
+      <QuickBookingDialog
+        isOpen={Boolean(selectedQuickBookLabour)}
+        labour={selectedQuickBookLabour}
+        defaultService={selectedQuickBookLabour?.category ?? labour.category}
+        defaultBudget={selectedQuickBookLabour?.dailyWage ?? labour.dailyWage}
+        onClose={() => setSelectedQuickBookLabour(null)}
+      />
     </AppShell>
   );
 };

@@ -1,71 +1,328 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, UserRound } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
+import { SelectField } from '../../components/common/SelectField';
+import { TextAreaField } from '../../components/common/TextAreaField';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { updateUserSettings } from '../../services/userService';
+import { availabilityOptions, languageOptions, workCategories } from '../../utils/constants';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
+const buildProfileForm = (profile, currentUser) => ({
+  fullName: profile?.fullName || currentUser?.displayName || '',
+  phoneNumber: profile?.phoneNumber || currentUser?.phoneNumber || '',
+  email: profile?.email || currentUser?.email || '',
+  location: profile?.location || '',
+  currentLocation: profile?.currentLocation || profile?.location || '',
+  category: profile?.category || '',
+  skills: Array.isArray(profile?.skills) ? profile.skills.join(', ') : '',
+  languages: Array.isArray(profile?.languages) ? profile.languages.join(', ') : '',
+  gender: profile?.gender || '',
+  age: profile?.age ?? '',
+  education: profile?.education || '',
+  experienceYears: profile?.experienceYears ?? '',
+  dailyWage: profile?.dailyWage ?? '',
+  availability: profile?.availability || 'Available',
+  about: profile?.about || ''
+});
+
 const SettingsPage = () => {
-  const { currentUser, userProfile, logout } = useAuth();
+  const { currentUser, userProfile, createOrUpdateUserProfile, logout } = useAuth();
   const [preferences, setPreferences] = useState({
     emailAlerts: true,
     whatsappAlerts: false
   });
+  const [formValues, setFormValues] = useState(() => buildProfileForm(userProfile, currentUser));
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+
+  useEffect(() => {
+    setFormValues(buildProfileForm(userProfile, currentUser));
+    setPreferences({
+      emailAlerts: userProfile?.settings?.emailAlerts ?? true,
+      whatsappAlerts: userProfile?.settings?.whatsappAlerts ?? false
+    });
+  }, [currentUser, userProfile]);
 
   const roleSummary = useMemo(
     () => (userProfile?.role ? `${userProfile.role} account` : 'No role assigned'),
     [userProfile?.role]
   );
+  const profileInitial = useMemo(
+    () => (userProfile?.fullName || currentUser?.displayName || 'U').trim().charAt(0).toUpperCase(),
+    [currentUser?.displayName, userProfile?.fullName]
+  );
+  const isLabour = userProfile?.role === 'labour';
+  const isClient = userProfile?.role === 'client';
+  const canSaveProfile = isLabour
+    ? Boolean(
+        formValues.fullName.trim() &&
+          (formValues.phoneNumber.trim() || formValues.email.trim()) &&
+          formValues.currentLocation.trim() &&
+          formValues.category &&
+          formValues.skills.trim()
+      )
+    : isClient
+      ? Boolean(
+          formValues.fullName.trim() &&
+            (formValues.phoneNumber.trim() || formValues.email.trim()) &&
+            formValues.location.trim()
+        )
+      : Boolean(
+          formValues.fullName.trim() &&
+            (formValues.phoneNumber.trim() || formValues.email.trim())
+        );
 
-  const saveSettings = async () => {
+  const updateFormValue = (key, value) =>
+    setFormValues((prev) => ({
+      ...prev,
+      [key]: value
+    }));
+
+  const saveProfile = async () => {
+    if (!currentUser || !userProfile?.role) {
+      return;
+    }
+
+    setSavingProfile(true);
+
+    try {
+      await createOrUpdateUserProfile(currentUser, {
+        ...formValues,
+        role: userProfile.role,
+        location: isClient ? formValues.location : formValues.currentLocation,
+        currentLocation: isLabour ? formValues.currentLocation : '',
+        about: isLabour ? formValues.about : ''
+      });
+      toast.success('Profile updated successfully.');
+    } catch (error) {
+      toast.error(getFirebaseErrorMessage(error));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const savePreferences = async () => {
     if (!currentUser) {
       return;
     }
 
+    setSavingPreferences(true);
+
     try {
       await updateUserSettings(currentUser.uid, preferences);
-      toast.success('Settings saved to Firestore.');
+      toast.success('Preferences saved.');
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error));
+    } finally {
+      setSavingPreferences(false);
     }
   };
 
   return (
     <AppShell>
-      <PageSEO title="Settings" description="Manage WorkLink preferences, verification, and appearance." />
+      <PageSEO title="Profile & Settings" description="Manage your WorkLink profile details, preferences, and verification state." />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+        <div className="page-shell grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <Card className="overflow-hidden rounded-[36px]">
+              <div className="grid gap-5 md:grid-cols-[auto_1fr] md:items-center">
+                <div className="grid h-20 w-20 place-items-center rounded-[24px] bg-brand-600 text-2xl font-bold text-white shadow-glow">
+                  {profileInitial}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">
+                    Profile workspace
+                  </p>
+                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Profile and settings</h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                    Update your role-specific details here. Labour accounts can manage work info and availability, while client accounts can keep booking details current.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge tone="blue">{roleSummary}</Badge>
+                    <Badge tone={userProfile?.verified ? 'emerald' : 'amber'}>
+                      {userProfile?.verified ? 'Verified profile' : 'Verification pending'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="rounded-[36px]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-semibold text-slate-950">Profile details</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    These details appear differently for labour and client accounts across search, booking, and dashboard screens.
+                  </p>
+                </div>
+                <Button onClick={saveProfile} disabled={savingProfile || !canSaveProfile}>
+                  <CheckCircle2 size={16} />
+                  {savingProfile ? 'Saving...' : 'Save profile'}
+                </Button>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <InputField
+                  label="Full name"
+                  value={formValues.fullName}
+                  onChange={(event) => updateFormValue('fullName', event.target.value)}
+                  placeholder="Your full name"
+                />
+                <InputField
+                  label="Phone number"
+                  value={formValues.phoneNumber}
+                  onChange={(event) => updateFormValue('phoneNumber', event.target.value)}
+                  placeholder="+91 98765 43210"
+                />
+                <InputField
+                  label="Email"
+                  type="email"
+                  value={formValues.email}
+                  onChange={(event) => updateFormValue('email', event.target.value)}
+                  placeholder="name@example.com"
+                />
+                {isClient ? (
+                  <InputField
+                    label="Location"
+                    value={formValues.location}
+                    onChange={(event) => updateFormValue('location', event.target.value)}
+                    placeholder="Gachibowli, Hyderabad"
+                  />
+                ) : (
+                  <InputField
+                    label="Current location"
+                    value={formValues.currentLocation}
+                    onChange={(event) => updateFormValue('currentLocation', event.target.value)}
+                    placeholder="Madhapur, Hyderabad"
+                  />
+                )}
+              </div>
+
+              {isLabour ? (
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <SelectField
+                    label="Work category"
+                    placeholder="Select category"
+                    value={formValues.category}
+                    options={workCategories}
+                    onChange={(event) => updateFormValue('category', event.target.value)}
+                  />
+                  <SelectField
+                    label="Availability"
+                    value={formValues.availability}
+                    options={availabilityOptions}
+                    onChange={(event) => updateFormValue('availability', event.target.value)}
+                  />
+                  <InputField
+                    label="Skills"
+                    value={formValues.skills}
+                    onChange={(event) => updateFormValue('skills', event.target.value)}
+                    placeholder="Electrician, CCTV installation, Internet/WiFi setup"
+                    hint="Use commas to separate multiple skills."
+                    className="md:col-span-2"
+                  />
+                  <InputField
+                    label="Languages known"
+                    value={formValues.languages}
+                    onChange={(event) => updateFormValue('languages', event.target.value)}
+                    placeholder={languageOptions.join(', ')}
+                    hint="Use commas to separate multiple languages."
+                    className="md:col-span-2"
+                  />
+                  <SelectField
+                    label="Gender"
+                    placeholder="Select gender"
+                    value={formValues.gender}
+                    options={['Male', 'Female', 'Other']}
+                    onChange={(event) => updateFormValue('gender', event.target.value)}
+                  />
+                  <InputField
+                    label="Age"
+                    type="number"
+                    value={formValues.age}
+                    onChange={(event) => updateFormValue('age', event.target.value)}
+                    placeholder="28"
+                  />
+                  <InputField
+                    label="Education"
+                    value={formValues.education}
+                    onChange={(event) => updateFormValue('education', event.target.value)}
+                    placeholder="SSC / ITI / Diploma / Degree"
+                  />
+                  <InputField
+                    label="Experience (years)"
+                    type="number"
+                    value={formValues.experienceYears}
+                    onChange={(event) => updateFormValue('experienceYears', event.target.value)}
+                    placeholder="5"
+                  />
+                  <InputField
+                    label="Expected daily wage"
+                    type="number"
+                    value={formValues.dailyWage}
+                    onChange={(event) => updateFormValue('dailyWage', event.target.value)}
+                    placeholder="1500"
+                  />
+                  <div className="md:col-span-2">
+                    <TextAreaField
+                      label="About"
+                      value={formValues.about}
+                      onChange={(event) => updateFormValue('about', event.target.value)}
+                      placeholder="Describe your work style, strengths, and preferred jobs."
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </Card>
+          </div>
+
           <div className="space-y-6">
             <Card>
-              <h1 className="text-3xl font-bold text-slate-950 dark:text-white">Settings</h1>
-              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                Manage account preferences, theme, and verification readiness.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Badge tone="blue">{roleSummary}</Badge>
-                <Badge tone={userProfile?.verified ? 'emerald' : 'amber'}>
-                  {userProfile?.verified ? 'Verified profile' : 'Verification pending'}
-                </Badge>
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-100 text-brand-700">
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950">Verification status</h2>
+                  <p className="text-sm text-slate-600">
+                    Verified profiles unlock stronger trust signals and direct calling.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 rounded-3xl bg-slate-50 p-5 text-sm text-slate-700">
+                <p>Name: {userProfile?.fullName || 'Not added'}</p>
+                <p className="mt-2">Phone: {userProfile?.phoneNumber || 'Not added'}</p>
+                <p className="mt-2">Email: {userProfile?.email || 'Not added'}</p>
+                {isLabour ? <p className="mt-2">Category: {userProfile?.category || 'Not added'}</p> : null}
               </div>
             </Card>
 
             <Card>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Contact preferences</h2>
-              <div className="mt-5 space-y-4 text-sm text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-700">
+                  <UserRound size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950">Contact preferences</h2>
+                  <p className="text-sm text-slate-600">
+                    Control reminders and booking communication alerts.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 space-y-4 text-sm text-slate-600">
                 {[
                   ['emailAlerts', 'Email alerts'],
                   ['whatsappAlerts', 'WhatsApp reminders']
                 ].map(([key, label]) => (
-                  <label
-                    key={key}
-                    className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50"
-                  >
+                  <label key={key} className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3">
                     <span>{label}</span>
                     <input
                       type="checkbox"
@@ -77,46 +334,17 @@ const SettingsPage = () => {
                   </label>
                 ))}
               </div>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button onClick={saveSettings}>
-                  <CheckCircle2 size={16} />
-                  Save settings
+              <div className="mt-6">
+                <Button onClick={savePreferences} disabled={savingPreferences}>
+                  {savingPreferences ? 'Saving...' : 'Save preferences'}
                 </Button>
               </div>
             </Card>
 
             <Card>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Appearance</h2>
-              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                WorkLink is currently locked to a clean light interface with dark text for readability.
-              </p>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card>
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-100 text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Verification status</h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
-                    Admin approval unlocks stronger trust signals and direct contact options.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 rounded-3xl bg-slate-50 p-5 text-sm text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
-                <p>Name: {userProfile?.fullName}</p>
-                <p className="mt-2">Phone: {userProfile?.phoneNumber || 'Not added'}</p>
-                <p className="mt-2">Email: {userProfile?.email || 'Not added'}</p>
-              </div>
-            </Card>
-
-            <Card>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Session</h2>
-              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                Log out safely when you're done with booking or profile updates.
+              <h2 className="text-xl font-semibold text-slate-950">Session</h2>
+              <p className="mt-3 text-sm text-slate-600">
+                Log out safely after you finish profile updates or booking work.
               </p>
               <div className="mt-6">
                 <Button variant="outline" onClick={logout}>

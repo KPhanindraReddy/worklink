@@ -2,6 +2,7 @@ import { BriefcaseBusiness, MapPin, Mic, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { LabourCard } from '../../components/cards/LabourCard';
+import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -33,6 +34,7 @@ const SearchPage = () => {
   });
   const [results, setResults] = useState([]);
   const [selectedLabour, setSelectedLabour] = useState(null);
+  const [quickBookState, setQuickBookState] = useState(null);
   const [searching, setSearching] = useState(false);
   const debouncedFilters = useDebounce(filters, 300);
   const geolocation = useGeolocation(true);
@@ -92,7 +94,6 @@ const SearchPage = () => {
     };
   }, [debouncedFilters, geolocation.latitude, geolocation.longitude, shouldRedirectRole]);
 
-  const recommended = useMemo(() => results.slice(0, 3), [results]);
   const availableResults = useMemo(
     () =>
       results
@@ -125,27 +126,18 @@ const SearchPage = () => {
       return category.toLowerCase().includes(query);
     });
   }, [filters.query]);
-  const bookingSearchParams = useMemo(() => {
-    const nextParams = new URLSearchParams();
+  const defaultQuickBookService = useMemo(
+    () => filters.query.trim() || filters.category || selectedLabour?.category || '',
+    [filters.category, filters.query, selectedLabour?.category]
+  );
 
-    if (selectedLabour?.id) {
-      nextParams.set('labourId', selectedLabour.id);
-    }
-
-    if (filters.query.trim()) {
-      nextParams.set('service', filters.query.trim());
-    }
-
-    if (filters.category) {
-      nextParams.set('category', filters.category);
-    }
-
-    if (filters.maxPrice) {
-      nextParams.set('budget', filters.maxPrice);
-    }
-
-    return nextParams.toString();
-  }, [filters.category, filters.maxPrice, filters.query, selectedLabour?.id]);
+  const handleQuickBook = (labour) => {
+    setQuickBookState({
+      labour,
+      defaultService: filters.query.trim() || filters.category || labour.category || '',
+      defaultBudget: filters.maxPrice || labour.dailyWage || ''
+    });
+  };
 
   if (shouldRedirectRole) {
     return <Navigate to={resolvePostAuthPath({ profile: userProfile })} replace />;
@@ -163,7 +155,7 @@ const SearchPage = () => {
           <SectionHeading
             eyebrow="Discovery"
             title="Search, filter, and shortlist labour in real time"
-            description="Use smart filters, voice search, nearby discovery, pricing, and experience sorting to find the right fit quickly."
+            description="Search nearby workers by service, price, availability, and distance, then book directly with date and time."
           />
 
           <div className="mt-10 grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -295,8 +287,8 @@ const SearchPage = () => {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <Button as={Link} to={`/booking?${bookingSearchParams}`}>
-                        Request this labour
+                      <Button type="button" onClick={() => handleQuickBook(selectedLabour)}>
+                        Book now
                       </Button>
                       <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
                         View full profile
@@ -309,12 +301,17 @@ const SearchPage = () => {
               <div>
                 <h3 className="text-xl font-semibold text-slate-950 dark:text-white">Nearest available labour</h3>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Pick one worker from this service. The closest workers are shown first when GPS is available.
+                  Pick one worker from this service. The closest available profiles are shown first when GPS is active.
                 </p>
                 <div className="mt-5 grid gap-5 xl:grid-cols-2">
                   {availableResults.length ? (
                     availableResults.map((labour) => (
-                      <LabourCard key={labour.id} labour={labour} showMatchScore />
+                      <LabourCard
+                        key={labour.id}
+                        labour={labour}
+                        showMatchScore
+                        onQuickBook={handleQuickBook}
+                      />
                     ))
                   ) : (
                     <div className="xl:col-span-2">
@@ -331,7 +328,14 @@ const SearchPage = () => {
                 <h3 className="text-xl font-semibold text-slate-950 dark:text-white">Recommended profiles</h3>
                 <div className="mt-5 grid gap-5 xl:grid-cols-2">
                   {results.length ? (
-                    results.map((labour) => <LabourCard key={labour.id} labour={labour} showMatchScore />)
+                    results.map((labour) => (
+                      <LabourCard
+                        key={labour.id}
+                        labour={labour}
+                        showMatchScore
+                        onQuickBook={handleQuickBook}
+                      />
+                    ))
                   ) : (
                     <div className="xl:col-span-2">
                       <EmptyState
@@ -346,6 +350,14 @@ const SearchPage = () => {
           </div>
         </div>
       </section>
+
+      <QuickBookingDialog
+        isOpen={Boolean(quickBookState?.labour)}
+        labour={quickBookState?.labour ?? null}
+        defaultService={quickBookState?.defaultService ?? defaultQuickBookService}
+        defaultBudget={quickBookState?.defaultBudget ?? selectedLabour?.dailyWage ?? ''}
+        onClose={() => setQuickBookState(null)}
+      />
     </AppShell>
   );
 };

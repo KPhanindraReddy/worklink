@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LabourCard } from '../../components/cards/LabourCard';
+import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -25,13 +26,48 @@ const sidebarItems = [
   { to: '/settings', label: 'Settings' }
 ];
 
+const getBookingTone = (status) => {
+  if (status === 'accepted') {
+    return 'emerald';
+  }
+
+  if (status === 'rejected') {
+    return 'rose';
+  }
+
+  if (status === 'completed') {
+    return 'blue';
+  }
+
+  return 'amber';
+};
+
 const ClientDashboardPage = () => {
   const { currentUser, userProfile } = useAuth();
   const [featuredLabours, setFeaturedLabours] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [quickBookState, setQuickBookState] = useState(null);
 
   useEffect(() => {
-    fetchFeaturedLabours(4).then(setFeaturedLabours);
+    fetchFeaturedLabours(6).then((items) => {
+      const prioritized = [...items].sort((a, b) => {
+        if (a.availability === b.availability) {
+          return Number(b.rating || 0) - Number(a.rating || 0);
+        }
+
+        if (a.availability === 'Available') {
+          return -1;
+        }
+
+        if (b.availability === 'Available') {
+          return 1;
+        }
+
+        return Number(b.rating || 0) - Number(a.rating || 0);
+      });
+
+      setFeaturedLabours(prioritized.slice(0, 4));
+    });
   }, []);
 
   useEffect(() => {
@@ -59,6 +95,18 @@ const ClientDashboardPage = () => {
       { label: 'Budgeted spend', value: formatCurrency(spend), hint: 'Money planned across requests' }
     ];
   }, [bookings, featuredLabours]);
+  const trackedBookings = useMemo(() => bookings.slice(0, 4), [bookings]);
+  const quickBookDefaults = useMemo(
+    () => ({
+      defaultService: quickBookState?.labour?.category || '',
+      defaultBudget: quickBookState?.labour?.dailyWage || ''
+    }),
+    [quickBookState?.labour?.category, quickBookState?.labour?.dailyWage]
+  );
+
+  const handleQuickBook = (labour) => {
+    setQuickBookState({ labour });
+  };
 
   return (
     <AppShell>
@@ -79,7 +127,7 @@ const ClientDashboardPage = () => {
                     Welcome, {userProfile?.fullName ?? 'Client'}
                   </h1>
                   <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-                    Shortlist trusted workers, compare ratings and price, book appointments, and manage the full hiring journey from one dashboard.
+                    Search nearby labour, send direct requests, and track acceptance, OTP, and work progress in one place.
                   </p>
                 </div>
                 <div className="rounded-[28px] bg-slate-50 p-5">
@@ -95,15 +143,15 @@ const ClientDashboardPage = () => {
               <Card>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Request services by budget</h2>
+                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Request service</h2>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Choose the work, add your location, set the amount you can pay, and send it to a labour professional.
+                      Choose the work, add your location, and send it to a nearby labour professional.
                     </p>
                   </div>
                   <Badge tone="blue">AI-assisted matching</Badge>
                 </div>
                 <div className="mt-6 rounded-3xl bg-brand-50 p-5 text-sm leading-7 text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
-                  Clients only: service requests include work type, date, location, notes, and budget so labour can accept or reject with clear money expectations.
+                  Quick booking now sends date, time, budget, and work details straight to the labour request queue.
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Button as={Link} to="/booking">
@@ -120,10 +168,10 @@ const ClientDashboardPage = () => {
               </Card>
 
               <Card>
-                <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Hiring history</h2>
+                <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Request tracking</h2>
                 <div className="mt-5 space-y-4">
-                  {bookings.length ? (
-                    bookings.map((booking) => (
+                  {trackedBookings.length ? (
+                    trackedBookings.map((booking) => (
                       <div key={booking.id} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
                         <div className="flex items-center justify-between gap-3">
                           <div>
@@ -134,7 +182,7 @@ const ClientDashboardPage = () => {
                               {booking.labourName}
                             </p>
                           </div>
-                          <Badge tone={booking.status === 'accepted' ? 'emerald' : 'amber'}>
+                          <Badge tone={getBookingTone(booking.status)}>
                             {booking.status}
                           </Badge>
                         </div>
@@ -144,11 +192,34 @@ const ClientDashboardPage = () => {
                         <p className="mt-2 text-sm font-semibold text-brand-700 dark:text-brand-200">
                           Budget: {formatCurrency(booking.amount)}
                         </p>
+                        {booking.status === 'accepted' && booking.startOtp ? (
+                          <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">
+                              Labour accepted
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-slate-700">
+                              Share this OTP after the labour reaches your location.
+                            </p>
+                            <p className="mt-3 font-display text-2xl font-bold tracking-[0.24em] text-slate-950">
+                              {booking.startOtp}
+                            </p>
+                          </div>
+                        ) : null}
+                        {booking.status === 'pending' ? (
+                          <p className="mt-4 text-sm text-amber-700">
+                            Waiting for {booking.labourName} to accept or reject this request.
+                          </p>
+                        ) : null}
+                        {booking.status === 'in_progress' ? (
+                          <p className="mt-4 text-sm text-emerald-700">
+                            OTP verified. {booking.labourName} is currently working on this job.
+                          </p>
+                        ) : null}
                       </div>
                     ))
                   ) : (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Your booking and completion history will show up here.
+                      Your pending, accepted, and completed requests will show up here.
                     </p>
                   )}
                 </div>
@@ -163,7 +234,7 @@ const ClientDashboardPage = () => {
                 </div>
                 <div className="mt-6 grid gap-5 lg:grid-cols-2">
                   {featuredLabours.map((labour) => (
-                    <LabourCard key={labour.id} labour={labour} />
+                    <LabourCard key={labour.id} labour={labour} onQuickBook={handleQuickBook} />
                   ))}
                 </div>
               </Card>
@@ -186,6 +257,17 @@ const ClientDashboardPage = () => {
                       <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
                         {formatCurrency(labour.dailyWage)}/day - {labour.currentLocation}
                       </p>
+                      <div className="mt-4">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={labour.availability !== 'Available'}
+                          onClick={() => handleQuickBook(labour)}
+                        >
+                          {labour.availability === 'Available' ? 'Book now' : labour.availability}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -194,6 +276,14 @@ const ClientDashboardPage = () => {
           </div>
         </div>
       </section>
+
+      <QuickBookingDialog
+        isOpen={Boolean(quickBookState?.labour)}
+        labour={quickBookState?.labour ?? null}
+        defaultService={quickBookDefaults.defaultService}
+        defaultBudget={quickBookDefaults.defaultBudget}
+        onClose={() => setQuickBookState(null)}
+      />
     </AppShell>
   );
 };

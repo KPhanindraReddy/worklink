@@ -7,7 +7,7 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { appleProvider, auth, db, googleProvider, isFirebaseConfigured } from '../firebase/config';
 
 let recaptchaVerifier = null;
@@ -109,6 +109,26 @@ const normalizeCommaSeparated = (value) =>
         .map((item) => item.trim())
         .filter(Boolean);
 
+const hasFormValue = (values, key) => Object.prototype.hasOwnProperty.call(values ?? {}, key);
+
+const getFormValue = (values, key, fallback = '') =>
+  hasFormValue(values, key) ? values[key] : fallback;
+
+const getNumericFormValue = (values, key, fallback = 0, { emptyAsNull = false } = {}) => {
+  if (!hasFormValue(values, key)) {
+    return fallback;
+  }
+
+  const value = values[key];
+
+  if (value === '' || value === null || value === undefined) {
+    return emptyAsNull ? null : 0;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
 export const createBaseUserProfile = async (user, formValues = {}) => {
   if (!isFirebaseConfigured || !db || !user) {
     throw new Error('Firebase must be configured before profile creation.');
@@ -129,51 +149,95 @@ export const createOrUpdateUserProfile = async (user, formValues) => {
     throw new Error('Firebase must be configured before profile creation.');
   }
 
+  const userRef = doc(db, 'users', user.uid);
+  const labourRef = doc(db, 'labours', user.uid);
+  const clientRef = doc(db, 'clients', user.uid);
+  const existingUserSnapshot = await getDoc(userRef);
+  const existingUser = existingUserSnapshot.exists() ? existingUserSnapshot.data() : null;
+  const resolvedRole = existingUser?.role || formValues.role || '';
+  const mergedBaseValues = {
+    ...existingUser,
+    ...formValues,
+    role: resolvedRole
+  };
   const baseProfile = {
-    ...buildBaseProfile(user, formValues),
+    ...buildBaseProfile(user, mergedBaseValues),
+    role: resolvedRole,
+    accountStatus: existingUser?.accountStatus || 'active',
+    verified: existingUser?.verified ?? false,
     profileComplete: true
   };
 
   await setDoc(
-    doc(db, 'users', user.uid),
+    userRef,
     {
       ...baseProfile,
-      createdAt: getCreatedAtValue(user)
+      createdAt: existingUser?.createdAt ?? getCreatedAtValue(user)
     },
     { merge: true }
   );
 
-  if (formValues.role === 'labour') {
+  if (resolvedRole === 'labour') {
+    const existingLabourSnapshot = await getDoc(labourRef);
+    const existingLabour = existingLabourSnapshot.exists() ? existingLabourSnapshot.data() : null;
+
     await setDoc(
-      doc(db, 'labours', user.uid),
+      labourRef,
       {
         ...baseProfile,
-        category: formValues.category || normalizeCommaSeparated(formValues.skills || formValues.category)[0] || '',
-        gender: formValues.gender || '',
-        age: Number(formValues.age) || null,
-        education: formValues.education || '',
-        experienceYears: Number(formValues.experienceYears) || 0,
-        skills: normalizeCommaSeparated(formValues.skills || formValues.category),
-        languages: normalizeCommaSeparated(formValues.languages),
-        currentLocation: formValues.currentLocation || '',
-        about: formValues.about || '',
-        availability: formValues.availability || 'Available',
-        dailyWage: Number(formValues.dailyWage) || 0,
-        previousWorkHistory: normalizeCommaSeparated(formValues.previousWorkHistory),
-        rating: 0,
-        reviewsCount: 0,
-        completedJobs: 0
+        category:
+          getFormValue(formValues, 'category', existingLabour?.category) ||
+          normalizeCommaSeparated(
+            getFormValue(formValues, 'skills', existingLabour?.skills || formValues.category || '')
+          )[0] ||
+          '',
+        gender: getFormValue(formValues, 'gender', existingLabour?.gender || ''),
+        age: getNumericFormValue(formValues, 'age', existingLabour?.age ?? null, { emptyAsNull: true }),
+        education: getFormValue(formValues, 'education', existingLabour?.education || ''),
+        experienceYears: getNumericFormValue(
+          formValues,
+          'experienceYears',
+          existingLabour?.experienceYears ?? 0
+        ),
+        skills: hasFormValue(formValues, 'skills')
+          ? normalizeCommaSeparated(formValues.skills || formValues.category)
+          : (existingLabour?.skills ?? []),
+        languages: hasFormValue(formValues, 'languages')
+          ? normalizeCommaSeparated(formValues.languages)
+          : (existingLabour?.languages ?? []),
+        currentLocation: getFormValue(
+          formValues,
+          'currentLocation',
+          existingLabour?.currentLocation || existingUser?.location || ''
+        ),
+        about: getFormValue(formValues, 'about', existingLabour?.about || ''),
+        availability: getFormValue(
+          formValues,
+          'availability',
+          existingLabour?.availability || 'Available'
+        ),
+        dailyWage: getNumericFormValue(formValues, 'dailyWage', existingLabour?.dailyWage ?? 0),
+        previousWorkHistory: hasFormValue(formValues, 'previousWorkHistory')
+          ? normalizeCommaSeparated(formValues.previousWorkHistory)
+          : (existingLabour?.previousWorkHistory ?? []),
+        verified: existingLabour?.verified ?? false,
+        rating: existingLabour?.rating ?? 0,
+        reviewsCount: existingLabour?.reviewsCount ?? 0,
+        completedJobs: existingLabour?.completedJobs ?? 0
       },
       { merge: true }
     );
   }
 
-  if (formValues.role === 'client') {
+  if (resolvedRole === 'client') {
+    const existingClientSnapshot = await getDoc(clientRef);
+    const existingClient = existingClientSnapshot.exists() ? existingClientSnapshot.data() : null;
+
     await setDoc(
-      doc(db, 'clients', user.uid),
+      clientRef,
       {
         ...baseProfile,
-        savedLabours: []
+        savedLabours: existingClient?.savedLabours ?? []
       },
       { merge: true }
     );

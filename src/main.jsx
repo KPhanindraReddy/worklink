@@ -7,6 +7,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppErrorBoundary } from './components/common/AppErrorBoundary';
+import { recoverRuntimeApp } from './utils/runtimeRecovery';
 import './i18n';
 import './styles/index.css';
 
@@ -17,6 +18,11 @@ if ('serviceWorker' in navigator && window.location.hostname === 'localhost') {
     });
   });
 }
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  recoverRuntimeApp('stale-bundle');
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

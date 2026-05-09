@@ -31,7 +31,12 @@ import { ensureConversation } from '../../services/chatService';
 import { getLabourById, searchLabours } from '../../services/labourService';
 import { createNotification } from '../../services/notificationService';
 import { workCategories } from '../../utils/constants';
-import { formatCurrency, formatDate, formatDistanceKm } from '../../utils/formatters';
+import {
+  buildAppointmentDateTime,
+  formatCurrency,
+  formatDate,
+  formatDistanceKm
+} from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
@@ -42,10 +47,7 @@ const debugBooking = (message, payload = {}) => {
 
 const getBookingTime = (booking) =>
   booking.appointmentAt
-    ? `${formatDate(booking.appointmentAt, 'dd MMM yyyy')} - ${String(booking.appointmentAt)
-        .split(' ')
-        .slice(-2)
-        .join(' ')}`
+    ? formatDate(booking.appointmentAt, 'dd MMM yyyy - hh:mm a')
     : 'Time not selected';
 
 const BookingPage = () => {
@@ -367,7 +369,7 @@ const BookingPage = () => {
     });
 
     try {
-      const appointmentAt = `${selectedDate} ${selectedSlot}`;
+      const appointmentAt = buildAppointmentDateTime(selectedDate, selectedSlot);
       const bookingId = await createBooking({
         clientId: currentUser.uid,
         clientName: userProfile.fullName,

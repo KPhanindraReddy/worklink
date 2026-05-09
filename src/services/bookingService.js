@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockBookings } from '../data/mockData';
+import { parseDateValue } from '../utils/formatters';
 
 const debugBookingService = (message, payload = {}) => {
   console.debug(`[WorkLink booking service] ${message}`, payload);
@@ -18,8 +19,8 @@ const debugBookingService = (message, payload = {}) => {
 
 const sortBookingsByAppointmentDesc = (items) =>
   [...items].sort((a, b) => {
-    const dateA = a.appointmentAt?.toDate ? a.appointmentAt.toDate() : new Date(a.appointmentAt || 0);
-    const dateB = b.appointmentAt?.toDate ? b.appointmentAt.toDate() : new Date(b.appointmentAt || 0);
+    const dateA = parseDateValue(a.appointmentAt)?.getTime() ?? 0;
+    const dateB = parseDateValue(b.appointmentAt)?.getTime() ?? 0;
 
     return dateB - dateA;
   });

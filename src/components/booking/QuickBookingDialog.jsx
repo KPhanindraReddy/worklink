@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { createBooking, subscribeBookingsForUser } from '../../services/bookingService';
 import { createNotification } from '../../services/notificationService';
-import { formatCurrency } from '../../utils/formatters';
+import { buildAppointmentDateTime, formatCurrency } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
@@ -146,7 +146,7 @@ export const QuickBookingDialog = ({
     setSubmitting(true);
 
     try {
-      const appointmentAt = `${selectedDate} ${selectedSlot}`;
+      const appointmentAt = buildAppointmentDateTime(selectedDate, selectedSlot);
       const bookingId = await createBooking({
         clientId: currentUser.uid,
         clientName: userProfile.fullName || currentUser.displayName || 'Client',

@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockNotifications } from '../data/mockData';
+import { parseDateValue } from '../utils/formatters';
 
 const debugNotifications = (message, payload = {}) => {
   console.debug(`[WorkLink notifications] ${message}`, payload);
@@ -16,8 +17,8 @@ const debugNotifications = (message, payload = {}) => {
 
 const sortNotificationsByCreatedAtDesc = (items) =>
   [...items].sort((a, b) => {
-    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+    const dateA = parseDateValue(a.createdAt)?.getTime() ?? 0;
+    const dateB = parseDateValue(b.createdAt)?.getTime() ?? 0;
 
     return dateB - dateA;
   });

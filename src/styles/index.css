@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: 255 255 255;
+    --surface: 255 255 255;
+    --surface-soft: 248 250 252;
+    --text: 7 17 34;
+    --muted: 71 85 105;
+    --ring: 37 99 235;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-[rgb(var(--bg))] text-[rgb(var(--text))] font-body antialiased;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  a {
+    @apply transition-colors duration-200;
+  }
+
+  ::selection {
+    @apply bg-brand-300/60 text-slate-950;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(148 163 184);
+    opacity: 1;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill,
+  select:-webkit-autofill:hover,
+  select:-webkit-autofill:focus {
+    -webkit-text-fill-color: rgb(15 23 42);
+    -webkit-box-shadow: 0 0 0px 1000px rgb(255 255 255) inset;
+    box-shadow: 0 0 0px 1000px rgb(255 255 255) inset;
+    transition: background-color 9999s ease-in-out 0s;
+    caret-color: rgb(15 23 42);
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .glass-panel {
+    @apply border border-slate-200 bg-white/95 shadow-soft;
+  }
+
+  .surface-card {
+    @apply rounded-3xl border border-slate-200 bg-[rgb(var(--surface))] shadow-soft;
+  }
+
+  .section-space {
+    @apply py-14 md:py-20;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400 bg-clip-text text-transparent;
+  }
+}

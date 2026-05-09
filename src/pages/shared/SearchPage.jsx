@@ -1,0 +1,241 @@
+import { Mic, Navigation, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import { LabourCard } from '../../components/cards/LabourCard';
+import { Button } from '../../components/common/Button';
+import { Card } from '../../components/common/Card';
+import { EmptyState } from '../../components/common/EmptyState';
+import { InputField } from '../../components/common/InputField';
+import { PageSEO } from '../../components/common/PageSEO';
+import { SelectField } from '../../components/common/SelectField';
+import { SectionHeading } from '../../components/common/SectionHeading';
+import { AppShell } from '../../components/layout/AppShell';
+import { LabourMap } from '../../components/map/LabourMap';
+import { useAuth } from '../../context/AuthContext';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useGeolocation } from '../../hooks/useGeolocation';
+import { useVoiceSearch } from '../../hooks/useVoiceSearch';
+import { searchLabours } from '../../services/labourService';
+import { resolvePostAuthPath } from '../../utils/authFlow';
+import { availabilityOptions, workCategories } from '../../utils/constants';
+
+const SearchPage = () => {
+  const [searchParams] = useSearchParams();
+  const { currentUser, userProfile } = useAuth();
+  const [filters, setFilters] = useState({
+    query: searchParams.get('query') ?? '',
+    category: searchParams.get('category') ?? '',
+    availability: '',
+    minRating: '',
+    minExperience: '',
+    maxPrice: ''
+  });
+  const [results, setResults] = useState([]);
+  const [selectedLabour, setSelectedLabour] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const debouncedFilters = useDebounce(filters, 300);
+  const geolocation = useGeolocation(true);
+  const { isListening, startListening } = useVoiceSearch({
+    lang: 'en-IN',
+    onResult: (value) => setFilters((prev) => ({ ...prev, query: value }))
+  });
+  const shouldRedirectRole = currentUser && userProfile?.role && userProfile.role !== 'client';
+
+  useEffect(() => {
+    if (shouldRedirectRole) {
+      return;
+    }
+
+    let isActive = true;
+    setSearching(true);
+
+    searchLabours(
+      {
+        skill: debouncedFilters.query,
+        category: debouncedFilters.category,
+        availability: debouncedFilters.availability,
+        minRating: debouncedFilters.minRating,
+        minExperience: debouncedFilters.minExperience,
+        maxPrice: debouncedFilters.maxPrice
+      },
+      geolocation
+    )
+      .then((items) => {
+        if (!isActive) {
+          return;
+        }
+
+        setResults(items);
+        setSelectedLabour(
+          (prev) =>
+            items.find((item) => item.id === prev?.id) ??
+            items.find((item) => item.availability === 'Available') ??
+            items[0] ??
+            null
+        );
+      })
+      .catch(() => {
+        if (isActive) {
+          setResults([]);
+          setSelectedLabour(null);
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setSearching(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [debouncedFilters, geolocation.latitude, geolocation.longitude, shouldRedirectRole]);
+
+  const recommended = useMemo(() => results.slice(0, 3), [results]);
+  const mapLabours = useMemo(
+    () => results.filter((labour) => labour.availability === 'Available'),
+    [results]
+  );
+
+  if (shouldRedirectRole) {
+    return <Navigate to={resolvePostAuthPath({ profile: userProfile })} replace />;
+  }
+
+  return (
+    <AppShell>
+      <PageSEO
+        title="Search labour"
+        description="Find skilled labour professionals by category, distance, price, rating, and live availability."
+      />
+
+      <section className="section-space">
+        <div className="page-shell">
+          <SectionHeading
+            eyebrow="Discovery"
+            title="Search, filter, and shortlist labour in real time"
+            description="Use smart filters, voice search, nearby discovery, pricing, and experience sorting to find the right fit quickly."
+          />
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-[320px_1fr]">
+            <Card className="h-fit space-y-4">
+              <div className="flex items-center gap-2 text-slate-950 dark:text-white">
+                <SlidersHorizontal size={18} />
+                <h3 className="text-lg font-semibold">Filters</h3>
+              </div>
+              <InputField
+                label="Search by skill"
+                value={filters.query}
+                placeholder="Electrician, painter, plumbing..."
+                onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
+              />
+              <Button type="button" variant="outline" onClick={startListening}>
+                <Mic size={16} />
+                {isListening ? 'Listening...' : 'Voice search'}
+              </Button>
+              <SelectField
+                label="Category"
+                placeholder="All categories"
+                options={workCategories}
+                value={filters.category}
+                onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value }))}
+              />
+              <SelectField
+                label="Availability"
+                placeholder="Any status"
+                options={availabilityOptions}
+                value={filters.availability}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, availability: event.target.value }))
+                }
+              />
+              <InputField
+                label="Minimum rating"
+                type="number"
+                min="0"
+                max="5"
+                step="0.1"
+                value={filters.minRating}
+                onChange={(event) => setFilters((prev) => ({ ...prev, minRating: event.target.value }))}
+              />
+              <InputField
+                label="Minimum experience"
+                type="number"
+                min="0"
+                value={filters.minExperience}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, minExperience: event.target.value }))
+                }
+              />
+              <InputField
+                label="Maximum daily wage"
+                type="number"
+                min="0"
+                value={filters.maxPrice}
+                onChange={(event) => setFilters((prev) => ({ ...prev, maxPrice: event.target.value }))}
+              />
+              <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
+                <div className="flex items-center gap-2 font-semibold">
+                  <Navigation size={16} />
+                  Nearby labour
+                </div>
+                <p className="mt-2">
+                  {geolocation.error
+                    ? geolocation.error
+                    : geolocation.latitude
+                      ? 'Location access is active. Results are ranked by distance too.'
+                      : 'Allow location in your browser to discover nearby workers faster.'}
+                </p>
+              </div>
+            </Card>
+
+            <div className="space-y-8">
+              <LabourMap
+                clientLocation={
+                  geolocation.latitude !== null && geolocation.longitude !== null
+                    ? { latitude: geolocation.latitude, longitude: geolocation.longitude }
+                    : null
+                }
+                labours={mapLabours}
+                selectedLabourId={selectedLabour?.id}
+                onSelectLabour={setSelectedLabour}
+                searching={searching}
+                title="Search result map"
+                emptyLabel="Available labour pins appear here after search"
+              />
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">AI recommendations</h3>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                  Ranked using skill match, rating, price fit, verification, and distance.
+                </p>
+                <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                  {recommended.map((labour) => (
+                    <LabourCard key={labour.id} labour={labour} showMatchScore />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">All matching labour</h3>
+                <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                  {results.length ? (
+                    results.map((labour) => <LabourCard key={labour.id} labour={labour} showMatchScore />)
+                  ) : (
+                    <div className="xl:col-span-2">
+                      <EmptyState
+                        title="No labour matched these filters"
+                        description="Try widening the price range, removing a category filter, or searching with fewer keywords."
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </AppShell>
+  );
+};
+
+export default SearchPage;

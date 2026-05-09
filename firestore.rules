@@ -1,0 +1,242 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function hasUserProfile() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return hasUserProfile() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function hasRole(role) {
+      return hasUserProfile() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    function isVerifiedUser() {
+      return hasUserProfile() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus != 'banned';
+    }
+
+    function isBookingParticipant(bookingId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/bookings/$(bookingId)) &&
+        (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.clientId ||
+         request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.labourId ||
+         isAdmin());
+    }
+
+    function onlyBookingFieldsChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function bookingPartiesUnchanged() {
+      return request.resource.data.clientId == resource.data.clientId &&
+        request.resource.data.labourId == resource.data.labourId;
+    }
+
+    function bookingOtpUnchanged() {
+      return !resource.data.keys().hasAny(['startOtp']) ||
+        request.resource.data.startOtp == resource.data.startOtp;
+    }
+
+    function clientCanCancelBooking() {
+      return request.auth.uid == resource.data.clientId &&
+        hasRole('client') &&
+        bookingPartiesUnchanged() &&
+        onlyBookingFieldsChanged(['status', 'updatedAt']) &&
+        request.resource.data.status == 'cancelled';
+    }
+
+    function labourCanAcceptOrRejectBooking() {
+      return request.auth.uid == resource.data.labourId &&
+        hasRole('labour') &&
+        bookingPartiesUnchanged() &&
+        bookingOtpUnchanged() &&
+        resource.data.status == 'pending' &&
+        onlyBookingFieldsChanged(['status', 'updatedAt']) &&
+        request.resource.data.status in ['accepted', 'rejected'];
+    }
+
+    function labourCanStartBooking() {
+      return request.auth.uid == resource.data.labourId &&
+        hasRole('labour') &&
+        bookingPartiesUnchanged() &&
+        bookingOtpUnchanged() &&
+        resource.data.status == 'accepted' &&
+        request.resource.data.status == 'in_progress' &&
+        request.resource.data.otpStatus == 'verified' &&
+        request.resource.data.workStartedBy == request.auth.uid &&
+        onlyBookingFieldsChanged([
+          'status',
+          'otpStatus',
+          'startedAt',
+          'startOtpVerifiedAt',
+          'workStartedBy',
+          'updatedAt'
+        ]);
+    }
+
+    function labourCanCompleteBooking() {
+      return request.auth.uid == resource.data.labourId &&
+        hasRole('labour') &&
+        bookingPartiesUnchanged() &&
+        bookingOtpUnchanged() &&
+        resource.data.status == 'in_progress' &&
+        request.resource.data.status == 'completed' &&
+        request.resource.data.completedBy == request.auth.uid &&
+        onlyBookingFieldsChanged([
+          'status',
+          'completedAt',
+          'completedBy',
+          'updatedAt'
+        ]);
+    }
+
+    function roleUnchangedOrUnset() {
+      return !resource.data.keys().hasAny(['role']) ||
+        resource.data.role == '' ||
+        request.resource.data.role == resource.data.role;
+    }
+
+    function userProtectedFieldsSafe(userId) {
+      return request.resource.data.uid == userId &&
+        roleUnchangedOrUnset() &&
+        (!resource.data.keys().hasAny(['accountStatus']) ||
+          request.resource.data.accountStatus == resource.data.accountStatus) &&
+        (!resource.data.keys().hasAny(['verified']) ||
+          request.resource.data.verified == resource.data.verified);
+    }
+
+    function labourTrustFieldsSafe(labourId) {
+      return request.resource.data.uid == labourId &&
+        (!resource.data.keys().hasAny(['verified']) ||
+          request.resource.data.verified == resource.data.verified) &&
+        (!resource.data.keys().hasAny(['rating']) ||
+          request.resource.data.rating == resource.data.rating) &&
+        (!resource.data.keys().hasAny(['reviewsCount']) ||
+          request.resource.data.reviewsCount == resource.data.reviewsCount) &&
+        (!resource.data.keys().hasAny(['completedJobs']) ||
+          request.resource.data.completedJobs == resource.data.completedJobs);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == userId &&
+        request.resource.data.role in ['client', 'labour'] &&
+        request.resource.data.accountStatus == 'active' &&
+        request.resource.data.verified == false;
+      allow update: if (isOwner(userId) && userProtectedFieldsSafe(userId)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /labours/{labourId} {
+      allow read: if true;
+      allow create: if isOwner(labourId) &&
+        request.resource.data.uid == labourId &&
+        request.resource.data.verified == false &&
+        request.resource.data.rating == 0 &&
+        request.resource.data.reviewsCount == 0 &&
+        request.resource.data.completedJobs == 0;
+      allow update: if (isOwner(labourId) && labourTrustFieldsSafe(labourId)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isOwner(clientId) || isAdmin();
+      allow create, update: if isOwner(clientId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participantIds;
+      allow update: if signedIn() &&
+        request.auth.uid in resource.data.participantIds &&
+        request.resource.data.participantIds == resource.data.participantIds;
+      allow create: if signedIn() &&
+        request.auth.uid in request.resource.data.participantIds &&
+        request.resource.data.participantIds.size() == 2;
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow create: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+          request.resource.data.senderId == request.auth.uid;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if signedIn() &&
+        ((request.auth.uid == resource.data.clientId && hasRole('client')) ||
+         (request.auth.uid == resource.data.labourId && hasRole('labour')) ||
+         isAdmin());
+      allow create: if isVerifiedUser() &&
+        hasRole('client') &&
+        request.auth.uid == request.resource.data.clientId &&
+        request.resource.data.status == 'pending' &&
+        exists(/databases/$(database)/documents/labours/$(request.resource.data.labourId)) &&
+        get(/databases/$(database)/documents/labours/$(request.resource.data.labourId)).data.availability == 'Available';
+      allow update: if signedIn() &&
+        (clientCanCancelBooking() ||
+         labourCanAcceptOrRejectBooking() ||
+         labourCanStartBooking() ||
+         labourCanCompleteBooking() ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow create, update: if signedIn() &&
+        (request.auth.uid == request.resource.data.clientId ||
+         request.auth.uid == request.resource.data.labourId ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isVerifiedUser() && request.auth.uid == request.resource.data.clientId;
+      allow update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && request.auth.uid == resource.data.userId;
+      allow update: if signedIn() &&
+        request.auth.uid == resource.data.userId &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create: if signedIn() &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.bookingId is string &&
+        isBookingParticipant(request.resource.data.bookingId);
+      allow delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

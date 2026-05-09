@@ -1,0 +1,50 @@
+import clsx from 'clsx';
+import { fromNow } from '../../utils/formatters';
+
+export const ConversationList = ({ conversations, activeConversationId, onSelect }) => (
+  <div className="surface-card h-full overflow-hidden p-2">
+    <div className="border-b border-slate-200 px-3 py-4 dark:border-slate-800">
+      <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Conversations</h2>
+    </div>
+    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+      {conversations.map((conversation) => (
+        <button
+          key={conversation.id}
+          type="button"
+          onClick={() => onSelect(conversation)}
+          className={clsx(
+            'flex w-full items-start gap-3 px-3 py-4 text-left transition',
+            activeConversationId === conversation.id
+              ? 'bg-brand-50 dark:bg-brand-500/10'
+              : 'hover:bg-slate-50 dark:hover:bg-slate-900'
+          )}
+        >
+          <div className="relative">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-200 font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              {(conversation.displayName || conversation.participantName)?.slice(0, 1) ?? 'W'}
+            </div>
+            {conversation.online ? (
+              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />
+            ) : null}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate font-semibold text-slate-950 dark:text-white">
+                {conversation.displayName || conversation.participantName}
+              </p>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {fromNow(conversation.lastMessageAt)}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {conversation.displayRole || conversation.participantRole}
+            </p>
+            <p className="mt-1 truncate text-sm text-slate-600 dark:text-slate-300">
+              {conversation.lastMessage}
+            </p>
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
+);

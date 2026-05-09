@@ -4,9 +4,13 @@ const errorCodeMap = {
   'auth/invalid-credential': 'Your login details were not accepted. Please try again.',
   'auth/weak-password': 'Use a stronger password with at least 6 characters.',
   'auth/popup-closed-by-user': 'The Google login popup was closed before finishing.',
+  'auth/popup-blocked': 'The login popup was blocked by the browser. Allow popups for this site and try again.',
+  'auth/cancelled-popup-request': 'Another login popup replaced the previous one. Try again once.',
   'auth/too-many-requests': 'Too many attempts were detected. Please wait and try again.',
   'auth/invalid-verification-code': 'The OTP code is invalid. Please check and retry.',
   'auth/missing-phone-number': 'Add a valid phone number with country code.',
+  'failed-precondition':
+    'Firestore needs the latest rules or indexes. Deploy Firebase rules and indexes, then try again.',
   'permission-denied':
     'Firestore permissions are blocking this action. Deploy the WorkLink Firestore rules or switch the database to test mode while setting up.'
 };

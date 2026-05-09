@@ -17,6 +17,65 @@ import { recommendLabours } from '../utils/recommendations';
 import { workCategories } from '../utils/constants';
 
 const SEARCH_RESULT_LIMIT = 80;
+const fetchLabourCandidates = async (filters, resolvedCategory) => {
+  const attempts = [
+    () => {
+      const constraints = [];
+
+      if (filters.availability) {
+        constraints.push(where('availability', '==', filters.availability));
+      }
+
+      if (resolvedCategory) {
+        constraints.push(where('category', '==', resolvedCategory));
+      }
+
+      constraints.push(limit(SEARCH_RESULT_LIMIT));
+      return getDocs(query(collection(db, 'labours'), ...constraints));
+    },
+    () => {
+      if (!filters.availability) {
+        return null;
+      }
+
+      return getDocs(
+        query(
+          collection(db, 'labours'),
+          where('availability', '==', filters.availability),
+          limit(SEARCH_RESULT_LIMIT)
+        )
+      );
+    },
+    () => getDocs(query(collection(db, 'labours'), limit(SEARCH_RESULT_LIMIT)))
+  ];
+
+  let lastError = null;
+
+  for (const runAttempt of attempts) {
+    try {
+      const snapshot = await runAttempt();
+
+      if (!snapshot) {
+        continue;
+      }
+
+      return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    } catch (error) {
+      lastError = error;
+
+      if (error?.code !== 'failed-precondition') {
+        throw error;
+      }
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  return [];
+};
+
 const normalizeSearchValue = (value) => String(value ?? '').trim().toLowerCase();
 const resolveCategoryFromSkill = (skill) => {
   const normalizedSkill = normalizeSearchValue(skill);
@@ -53,22 +112,8 @@ export const searchLabours = async (filters = {}, origin) => {
     return recommendLabours(mockLabours, filters, origin).slice(0, SEARCH_RESULT_LIMIT);
   }
 
-  const constraints = [];
   const resolvedCategory = filters.category || resolveCategoryFromSkill(filters.skill);
-
-  if (filters.availability) {
-    constraints.push(where('availability', '==', filters.availability));
-  }
-
-  if (resolvedCategory) {
-    constraints.push(where('category', '==', resolvedCategory));
-  }
-
-  constraints.push(limit(SEARCH_RESULT_LIMIT));
-
-  const labourQuery = query(collection(db, 'labours'), ...constraints);
-  const snapshot = await getDocs(labourQuery);
-  const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  const items = await fetchLabourCandidates(filters, resolvedCategory);
 
   return recommendLabours(items, filters, origin).filter((labour) => {
     const matchesSkill = filters.skill

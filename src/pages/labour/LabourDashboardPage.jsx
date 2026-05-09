@@ -307,22 +307,28 @@ const LabourDashboardPage = () => {
 
     try {
       await updateBookingStatus(booking.id, status);
+      let notificationDelivered = true;
 
       if (booking.clientId) {
-        await createNotification({
-          userId: booking.clientId,
-          senderId: currentUser.uid,
-          title: status === 'accepted' ? 'Service request accepted' : 'Service request rejected',
-          body:
-            status === 'accepted'
-              ? `${dashboardProfile.fullName} accepted your ${booking.serviceType} request.`
-              : `${dashboardProfile.fullName} rejected your ${booking.serviceType} request.`,
-          type: 'booking',
-          bookingId: booking.id
-        });
+        try {
+          await createNotification({
+            userId: booking.clientId,
+            senderId: currentUser.uid,
+            title: status === 'accepted' ? 'Service request accepted' : 'Service request rejected',
+            body:
+              status === 'accepted'
+                ? `${dashboardProfile.fullName} accepted your ${booking.serviceType} request.`
+                : `${dashboardProfile.fullName} rejected your ${booking.serviceType} request.`,
+            type: 'booking',
+            bookingId: booking.id
+          });
+        } catch (notificationError) {
+          notificationDelivered = false;
+          console.warn('WorkLink notification delivery skipped:', notificationError);
+        }
       }
 
-      toast.success(`Booking ${status}.`);
+      toast.success(notificationDelivered ? `Booking ${status}.` : `Booking ${status}. Client alert will appear after Firestore rules are deployed.`);
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error));
     }
@@ -352,19 +358,29 @@ const LabourDashboardPage = () => {
       await startBookingWork({ bookingId: booking.id, labourId: currentUser.uid, otp });
       setProfile((prev) => (prev ? { ...prev, availability: 'Busy', activeBookingId: booking.id } : prev));
       setOtpValues((prev) => ({ ...prev, [booking.id]: '' }));
+      let notificationDelivered = true;
 
       if (booking.clientId) {
-        await createNotification({
-          userId: booking.clientId,
-          senderId: currentUser.uid,
-          title: 'Work started',
-          body: `${dashboardProfile.fullName} started your ${booking.serviceType} work after OTP verification.`,
-          type: 'booking',
-          bookingId: booking.id
-        });
+        try {
+          await createNotification({
+            userId: booking.clientId,
+            senderId: currentUser.uid,
+            title: 'Work started',
+            body: `${dashboardProfile.fullName} started your ${booking.serviceType} work after OTP verification.`,
+            type: 'booking',
+            bookingId: booking.id
+          });
+        } catch (notificationError) {
+          notificationDelivered = false;
+          console.warn('WorkLink notification delivery skipped:', notificationError);
+        }
       }
 
-      toast.success('OTP verified. You are marked Busy until this job is completed.');
+      toast.success(
+        notificationDelivered
+          ? 'OTP verified. You are marked Busy until this job is completed.'
+          : 'OTP verified and work started. Client alert will appear after Firestore rules are deployed.'
+      );
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error));
     } finally {
@@ -393,18 +409,29 @@ const LabourDashboardPage = () => {
           : prev
       );
 
+      let notificationDelivered = true;
+
       if (booking.clientId) {
-        await createNotification({
-          userId: booking.clientId,
-          senderId: currentUser.uid,
-          title: 'Work completed',
-          body: `${dashboardProfile.fullName} marked your ${booking.serviceType} work as completed.`,
-          type: 'booking',
-          bookingId: booking.id
-        });
+        try {
+          await createNotification({
+            userId: booking.clientId,
+            senderId: currentUser.uid,
+            title: 'Work completed',
+            body: `${dashboardProfile.fullName} marked your ${booking.serviceType} work as completed.`,
+            type: 'booking',
+            bookingId: booking.id
+          });
+        } catch (notificationError) {
+          notificationDelivered = false;
+          console.warn('WorkLink notification delivery skipped:', notificationError);
+        }
       }
 
-      toast.success('Work completed. Your profile is available for new requests.');
+      toast.success(
+        notificationDelivered
+          ? 'Work completed. Your profile is available for new requests.'
+          : 'Work completed. Client alert will appear after Firestore rules are deployed.'
+      );
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error));
     } finally {

@@ -1,7 +1,8 @@
 import { Mic, Navigation, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { LabourCard } from '../../components/cards/LabourCard';
+import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -17,6 +18,7 @@ import { useGeolocation } from '../../hooks/useGeolocation';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import { searchLabours } from '../../services/labourService';
 import { resolvePostAuthPath } from '../../utils/authFlow';
+import { formatCurrency, formatDistanceKm } from '../../utils/formatters';
 import { availabilityOptions, workCategories } from '../../utils/constants';
 
 const SearchPage = () => {
@@ -96,6 +98,27 @@ const SearchPage = () => {
     () => results.filter((labour) => labour.availability === 'Available'),
     [results]
   );
+  const bookingSearchParams = useMemo(() => {
+    const nextParams = new URLSearchParams();
+
+    if (selectedLabour?.id) {
+      nextParams.set('labourId', selectedLabour.id);
+    }
+
+    if (filters.query.trim()) {
+      nextParams.set('service', filters.query.trim());
+    }
+
+    if (filters.category) {
+      nextParams.set('category', filters.category);
+    }
+
+    if (filters.maxPrice) {
+      nextParams.set('budget', filters.maxPrice);
+    }
+
+    return nextParams.toString();
+  }, [filters.category, filters.maxPrice, filters.query, selectedLabour?.id]);
 
   if (shouldRedirectRole) {
     return <Navigate to={resolvePostAuthPath({ profile: userProfile })} replace />;
@@ -202,6 +225,34 @@ const SearchPage = () => {
                 title="Search result map"
                 emptyLabel="Available labour pins appear here after search"
               />
+
+              {selectedLabour ? (
+                <Card className="border-brand-200 bg-brand-50/60">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">
+                        Selected labour
+                      </p>
+                      <h3 className="mt-2 text-2xl font-semibold text-slate-950">
+                        {selectedLabour.fullName}
+                      </h3>
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-700">
+                        <Badge tone="emerald">{selectedLabour.availability}</Badge>
+                        <Badge tone="slate">{formatDistanceKm(selectedLabour.distanceKm)}</Badge>
+                        <Badge tone="blue">{formatCurrency(selectedLabour.dailyWage)}/day</Badge>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <Button as={Link} to={`/booking?${bookingSearchParams}`}>
+                        Request this labour
+                      </Button>
+                      <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
+                        View full profile
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ) : null}
 
               <div>
                 <h3 className="text-xl font-semibold text-slate-950 dark:text-white">AI recommendations</h3>

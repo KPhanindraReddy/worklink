@@ -44,6 +44,9 @@ const getBookingTime = (booking) =>
 const BookingPage = () => {
   const [searchParams] = useSearchParams();
   const labourId = searchParams.get('labourId');
+  const initialService = searchParams.get('service') ?? '';
+  const initialCategory = searchParams.get('category') ?? '';
+  const initialBudget = searchParams.get('budget') ?? '';
   const { currentUser, userProfile } = useAuth();
   const geolocation = useGeolocation(true);
   const [availableLabours, setAvailableLabours] = useState([]);
@@ -55,10 +58,10 @@ const BookingPage = () => {
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formValues, setFormValues] = useState({
-    serviceName: '',
+    serviceName: initialService,
     serviceDetails: '',
     address: userProfile?.location ?? '',
-    budget: ''
+    budget: initialBudget
   });
 
   const clientLocation = useMemo(
@@ -80,6 +83,7 @@ const BookingPage = () => {
         setAvailableLabours((prev) =>
           prev.some((item) => item.id === labour.id) ? prev : [labour, ...prev]
         );
+        setSearched(true);
       }
     });
   }, [labourId]);
@@ -102,6 +106,17 @@ const BookingPage = () => {
       setFormValues((prev) => ({ ...prev, address: prev.address || userProfile.location }));
     }
   }, [userProfile?.location]);
+
+  useEffect(() => {
+    if (!initialCategory || formValues.serviceName.trim()) {
+      return;
+    }
+
+    setFormValues((prev) => ({
+      ...prev,
+      serviceName: initialCategory
+    }));
+  }, [formValues.serviceName, initialCategory]);
 
   const activeBookings = useMemo(
     () => bookings.filter((booking) => activeWorkStatuses.includes(booking.status)),
@@ -148,6 +163,7 @@ const BookingPage = () => {
       const results = await searchLabours(
         {
           skill: formValues.serviceName,
+          category: initialCategory,
           availability: 'Available',
           maxPrice: formValues.budget
         },
@@ -233,16 +249,27 @@ const BookingPage = () => {
         requestFlow: 'client_service_map'
       });
 
-      await createNotification({
-        userId: selectedLabour.id,
-        senderId: currentUser.uid,
-        title: 'New service request',
-        body: `${userProfile.fullName} requested ${formValues.serviceName} at ${formValues.address}.`,
-        type: 'booking',
-        bookingId
-      });
+      let notificationDelivered = true;
 
-      toast.success('Service request sent. Contact unlocks after labour accepts.');
+      try {
+        await createNotification({
+          userId: selectedLabour.id,
+          senderId: currentUser.uid,
+          title: 'New service request',
+          body: `${userProfile.fullName} requested ${formValues.serviceName} at ${formValues.address}.`,
+          type: 'booking',
+          bookingId
+        });
+      } catch (notificationError) {
+        notificationDelivered = false;
+        console.warn('WorkLink notification delivery skipped:', notificationError);
+      }
+
+      toast.success(
+        notificationDelivered
+          ? 'Service request sent. Contact unlocks after labour accepts.'
+          : 'Service request sent. Open the labour dashboard and notifications after Firestore rules are deployed.'
+      );
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error));
     } finally {
@@ -295,6 +322,29 @@ const BookingPage = () => {
                   />
                 </div>
               </Card>
+
+              {selectedLabour ? (
+                <Card className="rounded-[28px] border-brand-200 bg-brand-50/60 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">
+                        Requesting now
+                      </p>
+                      <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+                        {selectedLabour.fullName}
+                      </h2>
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-700">
+                        <Badge tone="emerald">{selectedLabour.availability}</Badge>
+                        <Badge tone="slate">{formatDistanceKm(selectedLabour.distanceKm)}</Badge>
+                        <Badge tone="blue">{formatCurrency(selectedLabour.dailyWage)}/day</Badge>
+                      </div>
+                    </div>
+                    <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
+                      View profile
+                    </Button>
+                  </div>
+                </Card>
+              ) : null}
 
               {clientIsBusy ? (
                 <Card className="rounded-[28px] border-amber-200 bg-amber-50 p-5">

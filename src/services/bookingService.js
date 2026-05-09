@@ -2,9 +2,7 @@ import {
   collection,
   doc,
   getDocs,
-  limit,
   onSnapshot,
-  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -14,8 +12,6 @@ import {
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockBookings } from '../data/mockData';
 
-const USER_BOOKING_LIMIT = 100;
-
 const sortBookingsByAppointmentDesc = (items) =>
   [...items].sort((a, b) => {
     const dateA = a.appointmentAt?.toDate ? a.appointmentAt.toDate() : new Date(a.appointmentAt || 0);
@@ -23,6 +19,15 @@ const sortBookingsByAppointmentDesc = (items) =>
 
     return dateB - dateA;
   });
+
+const buildUserBookingsQuery = (userId, role) => {
+  const key = role === 'labour' ? 'labourId' : 'clientId';
+
+  return query(
+    collection(db, 'bookings'),
+    where(key, '==', userId)
+  );
+};
 
 export const getBookingsForUser = async ({ userId, role }) => {
   if (!userId || !role) {
@@ -35,13 +40,7 @@ export const getBookingsForUser = async ({ userId, role }) => {
     );
   }
 
-  const key = role === 'labour' ? 'labourId' : 'clientId';
-  const bookingQuery = query(
-    collection(db, 'bookings'),
-    where(key, '==', userId),
-    orderBy('appointmentAt', 'desc'),
-    limit(USER_BOOKING_LIMIT)
-  );
+  const bookingQuery = buildUserBookingsQuery(userId, role);
 
   const snapshot = await getDocs(bookingQuery);
   return sortBookingsByAppointmentDesc(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
@@ -64,13 +63,7 @@ export const subscribeBookingsForUser = ({ userId, role }, onNext, onError) => {
     return () => {};
   }
 
-  const key = role === 'labour' ? 'labourId' : 'clientId';
-  const bookingQuery = query(
-    collection(db, 'bookings'),
-    where(key, '==', userId),
-    orderBy('appointmentAt', 'desc'),
-    limit(USER_BOOKING_LIMIT)
-  );
+  const bookingQuery = buildUserBookingsQuery(userId, role);
 
   return onSnapshot(
     bookingQuery,

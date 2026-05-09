@@ -3,7 +3,6 @@ import {
   collection,
   getDocs,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   where
@@ -11,22 +10,29 @@ import {
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockNotifications } from '../data/mockData';
 
+const sortNotificationsByCreatedAtDesc = (items) =>
+  [...items].sort((a, b) => {
+    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+
+    return dateB - dateA;
+  });
+
 export const getNotifications = async (userId) => {
   if (!userId) {
     return [];
   }
 
   if (!isFirebaseConfigured || !db) {
-    return mockNotifications;
+    return sortNotificationsByCreatedAtDesc(mockNotifications);
   }
 
   const notificationsQuery = query(
     collection(db, 'notifications'),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc')
+    where('userId', '==', userId)
   );
   const snapshot = await getDocs(notificationsQuery);
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  return sortNotificationsByCreatedAtDesc(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
 };
 
 export const subscribeNotifications = (userId, onNext, onError) => {
@@ -36,20 +42,21 @@ export const subscribeNotifications = (userId, onNext, onError) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    onNext(mockNotifications);
+    onNext(sortNotificationsByCreatedAtDesc(mockNotifications));
     return () => {};
   }
 
   const notificationsQuery = query(
     collection(db, 'notifications'),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc')
+    where('userId', '==', userId)
   );
 
   return onSnapshot(
     notificationsQuery,
     (snapshot) => {
-      onNext(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      onNext(
+        sortNotificationsByCreatedAtDesc(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))
+      );
     },
     onError
   );

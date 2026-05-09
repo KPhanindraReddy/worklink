@@ -19,7 +19,6 @@ import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const sidebarItems = [
   { to: '/client/dashboard', label: 'Overview' },
-  { to: '/booking', label: 'Request service' },
   { to: '/search', label: 'Search labour' },
   { to: '/chat', label: 'Chat' },
   { to: '/notifications', label: 'Notifications' },
@@ -143,21 +142,18 @@ const ClientDashboardPage = () => {
               <Card>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Request service</h2>
+                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Search labour</h2>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Choose the work, add your location, and send it to a nearby labour professional.
+                      Enter the service you need and see available labour nearby.
                     </p>
                   </div>
                   <Badge tone="blue">AI-assisted matching</Badge>
                 </div>
                 <div className="mt-6 rounded-3xl bg-brand-50 p-5 text-sm leading-7 text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
-                  Quick booking now sends date, time, budget, and work details straight to the labour request queue.
+                  Search now shows matching available labour directly, so clients do not need a separate request page.
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <Button as={Link} to="/booking">
-                    Request service
-                  </Button>
-                  <Button as={Link} to="/search" variant="outline">
+                  <Button as={Link} to="/search">
                     <Search size={16} />
                     Search labour
                   </Button>

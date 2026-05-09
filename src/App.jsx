@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { Skeleton } from './components/common/Skeleton';
 
@@ -11,7 +11,6 @@ const ClientDashboardPage = lazy(() => import('./pages/client/ClientDashboardPag
 const SearchPage = lazy(() => import('./pages/shared/SearchPage'));
 const LabourProfilePage = lazy(() => import('./pages/shared/LabourProfilePage'));
 const ChatPage = lazy(() => import('./pages/shared/ChatPage'));
-const BookingPage = lazy(() => import('./pages/shared/BookingPage'));
 const NotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'));
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const AboutContactPage = lazy(() => import('./pages/shared/AboutContactPage'));
@@ -44,7 +43,7 @@ const App = () => (
         path="/booking"
         element={
           <ProtectedRoute allowedRoles={['client']}>
-            <BookingPage />
+            <Navigate to="/search" replace />
           </ProtectedRoute>
         }
       />

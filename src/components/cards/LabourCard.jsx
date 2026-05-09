@@ -93,7 +93,7 @@ export const LabourCard = ({ labour, showMatchScore = false, onQuickBook }) => {
         ) : (
           <Button
             as={Link}
-            to={isClient ? `/booking?labourId=${labour.id}` : '/auth?role=client&mode=signup'}
+            to={isClient ? `/labour/${labour.id}` : '/auth?role=client&mode=signup'}
             variant="outline"
             className="flex-1"
           >

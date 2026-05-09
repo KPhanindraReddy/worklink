@@ -126,7 +126,7 @@ const AuthPage = () => {
 
   const selectedRole = roles.find((item) => item.value === role);
   const roleDescriptions = {
-    client: 'Request services, set a budget, book workers, and manage hiring history.',
+    client: 'Search nearby labour, choose workers, and manage hiring history.',
     labour: 'Receive customer requests, accept jobs, track earnings, and manage availability.'
   };
 

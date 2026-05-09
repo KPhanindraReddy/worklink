@@ -238,7 +238,7 @@ const SearchPage = () => {
                       Available services
                     </h3>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Choose a service first, then request the nearest available worker.
+                      Choose a service first, then see the available workers for it.
                     </p>
                   </div>
                   <Badge tone="blue">{visibleServices.length} services</Badge>

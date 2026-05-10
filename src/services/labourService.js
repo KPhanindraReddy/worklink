@@ -19,10 +19,57 @@ import {
   recommendLabours
 } from '../utils/recommendations';
 import { workCategories } from '../utils/constants';
+import { buildLocationCacheKey } from '../utils/location';
 
 const SEARCH_RESULT_LIMIT = 80;
+const SEARCH_CACHE_TTL_MS = 30000;
+const labourSearchCache = new Map();
 const debugLabourSearch = (message, payload = {}) => {
   console.debug(`[WorkLink labour search] ${message}`, payload);
+};
+
+const buildSearchCacheKey = (filters, resolvedCategory, origin) =>
+  JSON.stringify({
+    skill: String(filters.skill ?? '').trim().toLowerCase(),
+    category: String(filters.category ?? '').trim().toLowerCase(),
+    resolvedCategory: String(resolvedCategory ?? '').trim().toLowerCase(),
+    availability: String(filters.availability ?? '').trim().toLowerCase(),
+    minRating: String(filters.minRating ?? '').trim(),
+    minExperience: String(filters.minExperience ?? '').trim(),
+    maxPrice: String(filters.maxPrice ?? '').trim(),
+    origin: buildLocationCacheKey(origin)
+  });
+
+const getCachedSearchResults = (cacheKey) => {
+  const cachedEntry = labourSearchCache.get(cacheKey);
+
+  if (!cachedEntry) {
+    return null;
+  }
+
+  if (Date.now() - cachedEntry.createdAt > SEARCH_CACHE_TTL_MS) {
+    labourSearchCache.delete(cacheKey);
+    return null;
+  }
+
+  return cachedEntry;
+};
+
+const cacheSearchResults = (cacheKey, payload) => {
+  labourSearchCache.set(cacheKey, {
+    createdAt: Date.now(),
+    ...payload
+  });
+
+  if (labourSearchCache.size <= 40) {
+    return;
+  }
+
+  const oldestKey = labourSearchCache.keys().next().value;
+
+  if (oldestKey) {
+    labourSearchCache.delete(oldestKey);
+  }
 };
 
 const fetchLabourCandidates = async (filters, resolvedCategory) => {
@@ -129,33 +176,62 @@ export const fetchFeaturedLabours = async (count = 6) => {
 };
 
 export const searchLabours = async (filters = {}, origin) => {
-  if (!isFirebaseConfigured || !db) {
-    return recommendLabours(mockLabours, filters, origin).slice(0, SEARCH_RESULT_LIMIT);
+  const resolvedCategory = filters.category || resolveCategoryFromSkill(filters.skill);
+  const cacheKey = buildSearchCacheKey(filters, resolvedCategory, origin);
+  const cachedEntry = getCachedSearchResults(cacheKey);
+
+  if (cachedEntry?.results) {
+    return cachedEntry.results;
   }
 
-  const resolvedCategory = filters.category || resolveCategoryFromSkill(filters.skill);
-  const items = await fetchLabourCandidates(filters, resolvedCategory);
-  debugLabourSearch('ranking candidates', {
-    filters,
-    resolvedCategory,
-    origin,
-    candidateCount: items.length
-  });
+  if (cachedEntry?.requestPromise) {
+    return cachedEntry.requestPromise;
+  }
 
-  return recommendLabours(items, filters, origin).filter((labour) => {
-    const matchesSkill = filters.skill ? labourMatchesServiceQuery(labour, filters.skill) : true;
-    const matchesCategory = filters.category ? labourMatchesCategory(labour, filters.category) : true;
-    const matchesService = filters.skill && filters.category
-      ? matchesSkill || matchesCategory
-      : matchesSkill && matchesCategory;
-    const matchesPrice = filters.maxPrice ? labour.dailyWage <= Number(filters.maxPrice) : true;
-    const matchesExperience = filters.minExperience
-      ? labour.experienceYears >= Number(filters.minExperience)
-      : true;
-    const matchesRating = filters.minRating ? labour.rating >= Number(filters.minRating) : true;
+  const requestPromise = (async () => {
+    if (!isFirebaseConfigured || !db) {
+      return recommendLabours(mockLabours, filters, origin).slice(0, SEARCH_RESULT_LIMIT);
+    }
 
-    return matchesService && matchesPrice && matchesExperience && matchesRating;
-  }).slice(0, SEARCH_RESULT_LIMIT);
+    const items = await fetchLabourCandidates(filters, resolvedCategory);
+    debugLabourSearch('ranking candidates', {
+      filters,
+      resolvedCategory,
+      origin,
+      candidateCount: items.length
+    });
+
+    return recommendLabours(items, filters, origin)
+      .filter((labour) => {
+        const matchesSkill = filters.skill ? labourMatchesServiceQuery(labour, filters.skill) : true;
+        const matchesCategory = filters.category
+          ? labourMatchesCategory(labour, filters.category)
+          : true;
+        const matchesService =
+          filters.skill && filters.category
+            ? matchesSkill || matchesCategory
+            : matchesSkill && matchesCategory;
+        const matchesPrice = filters.maxPrice ? labour.dailyWage <= Number(filters.maxPrice) : true;
+        const matchesExperience = filters.minExperience
+          ? labour.experienceYears >= Number(filters.minExperience)
+          : true;
+        const matchesRating = filters.minRating ? labour.rating >= Number(filters.minRating) : true;
+
+        return matchesService && matchesPrice && matchesExperience && matchesRating;
+      })
+      .slice(0, SEARCH_RESULT_LIMIT);
+  })();
+
+  cacheSearchResults(cacheKey, { requestPromise });
+
+  try {
+    const results = await requestPromise;
+    cacheSearchResults(cacheKey, { results });
+    return results;
+  } catch (error) {
+    labourSearchCache.delete(cacheKey);
+    throw error;
+  }
 };
 
 export const getLabourById = async (labourId) => {

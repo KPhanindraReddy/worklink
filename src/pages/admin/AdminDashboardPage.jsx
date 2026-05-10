@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Bell, LayoutDashboard, Settings } from 'lucide-react';
+import { Bell, LayoutDashboard, Settings, UserRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -10,11 +11,12 @@ import { AppShell } from '../../components/layout/AppShell';
 import { MetricsGrid } from '../../components/dashboard/MetricsGrid';
 import { getAdminOverview, verifyLabourAccount, banUser } from '../../services/adminService';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { getLocationLabel } from '../../utils/location';
 
 const sidebarItems = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard },
   { to: '/notifications', label: 'Alerts', icon: Bell },
-  { to: '/settings', label: 'Settings', icon: Settings }
+  { to: '/settings', label: 'Admin Profile', icon: Settings }
 ];
 
 const AdminDashboardPage = () => {
@@ -77,14 +79,20 @@ const AdminDashboardPage = () => {
 
           <div className="space-y-6">
             <Card className="overflow-hidden rounded-[36px]">
-              <div className="p-8">
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone="blue">Admin</Badge>
-                  <Badge tone="slate">Operations</Badge>
+              <div className="flex flex-wrap items-start justify-between gap-4 p-8">
+                <div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge tone="blue">Admin</Badge>
+                    <Badge tone="slate">Operations</Badge>
+                  </div>
+                  <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
+                    Marketplace overview
+                  </h1>
                 </div>
-                <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
-                  Marketplace overview
-                </h1>
+                <Button as={Link} to="/settings" size="sm">
+                  <UserRound size={16} />
+                  Open admin profile
+                </Button>
               </div>
             </Card>
 
@@ -101,10 +109,10 @@ const AdminDashboardPage = () => {
                           <div>
                             <h3 className="font-semibold text-slate-950 dark:text-white">{labour.fullName}</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                              {labour.category} • {labour.currentLocation}
+                              {labour.category} - {getLocationLabel(labour, { preferCurrent: true })}
                             </p>
                             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                              {labour.experienceYears} years experience • {labour.skills?.join(', ')}
+                              {labour.experienceYears} years experience - {labour.skills?.join(', ')}
                             </p>
                           </div>
                           <Badge tone="amber">Needs review</Badge>

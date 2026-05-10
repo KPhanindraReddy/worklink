@@ -1,6 +1,6 @@
 import { BriefcaseBusiness, MapPin, Mic, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { LabourCard } from '../../components/cards/LabourCard';
 import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
@@ -12,18 +12,15 @@ import { PageSEO } from '../../components/common/PageSEO';
 import { SelectField } from '../../components/common/SelectField';
 import { SectionHeading } from '../../components/common/SectionHeading';
 import { AppShell } from '../../components/layout/AppShell';
-import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import { searchLabours } from '../../services/labourService';
-import { resolvePostAuthPath } from '../../utils/authFlow';
 import { formatCurrency, formatDistanceKm } from '../../utils/formatters';
 import { availabilityOptions, workCategories } from '../../utils/constants';
 
 const SearchPage = () => {
   const [searchParams] = useSearchParams();
-  const { currentUser, userProfile } = useAuth();
   const [filters, setFilters] = useState({
     query: searchParams.get('query') ?? '',
     category: searchParams.get('category') ?? '',
@@ -42,13 +39,8 @@ const SearchPage = () => {
     lang: 'en-IN',
     onResult: (value) => setFilters((prev) => ({ ...prev, query: value }))
   });
-  const shouldRedirectRole = currentUser && userProfile?.role && userProfile.role !== 'client';
 
   useEffect(() => {
-    if (shouldRedirectRole) {
-      return;
-    }
-
     let isActive = true;
     setSearching(true);
 
@@ -92,7 +84,7 @@ const SearchPage = () => {
     return () => {
       isActive = false;
     };
-  }, [debouncedFilters, geolocation.latitude, geolocation.longitude, shouldRedirectRole]);
+  }, [debouncedFilters, geolocation.latitude, geolocation.longitude]);
 
   const availableResults = useMemo(
     () =>
@@ -138,10 +130,6 @@ const SearchPage = () => {
       defaultBudget: filters.maxPrice || labour.dailyWage || ''
     });
   };
-
-  if (shouldRedirectRole) {
-    return <Navigate to={resolvePostAuthPath({ profile: userProfile })} replace />;
-  }
 
   return (
     <AppShell>

@@ -1,10 +1,14 @@
 import {
   collection,
   doc,
+  getCountFromServer,
   getDocs,
+  limit,
+  query,
   serverTimestamp,
   setDoc,
-  updateDoc
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { mockAdminAnalytics, mockCategories, mockLabours } from '../data/mockData';
@@ -18,22 +22,27 @@ export const getAdminOverview = async () => {
     };
   }
 
-  const [usersSnapshot, laboursSnapshot, bookingsSnapshot] = await Promise.all([
-    getDocs(collection(db, 'users')),
-    getDocs(collection(db, 'labours')),
-    getDocs(collection(db, 'bookings'))
+  const pendingLaboursQuery = query(
+    collection(db, 'labours'),
+    where('verified', '==', false),
+    limit(24)
+  );
+  const [usersCountSnapshot, laboursCountSnapshot, bookingsCountSnapshot, pendingCountSnapshot, pendingLaboursSnapshot] = await Promise.all([
+    getCountFromServer(collection(db, 'users')),
+    getCountFromServer(collection(db, 'labours')),
+    getCountFromServer(collection(db, 'bookings')),
+    getCountFromServer(query(collection(db, 'labours'), where('verified', '==', false))),
+    getDocs(pendingLaboursQuery)
   ]);
 
-  const pendingLabours = laboursSnapshot.docs
-    .map((item) => ({ id: item.id, ...item.data() }))
-    .filter((labour) => !labour.verified);
+  const pendingLabours = pendingLaboursSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 
   return {
     analytics: {
-      userCount: usersSnapshot.size,
-      labourCount: laboursSnapshot.size,
-      activeBookings: bookingsSnapshot.size,
-      pendingVerifications: pendingLabours.length
+      userCount: usersCountSnapshot.data().count,
+      labourCount: laboursCountSnapshot.data().count,
+      activeBookings: bookingsCountSnapshot.data().count,
+      pendingVerifications: pendingCountSnapshot.data().count
     },
     categories: mockCategories,
     pendingLabours

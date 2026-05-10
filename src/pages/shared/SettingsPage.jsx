@@ -8,11 +8,13 @@ import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { SelectField } from '../../components/common/SelectField';
 import { TextAreaField } from '../../components/common/TextAreaField';
+import { ProfileLocationPanel } from '../../components/location/ProfileLocationPanel';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { updateUserSettings } from '../../services/userService';
 import { availabilityOptions, languageOptions, workCategories } from '../../utils/constants';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { getLocationLabel } from '../../utils/location';
 
 const buildProfileForm = (profile, currentUser) => ({
   fullName: profile?.fullName || currentUser?.displayName || '',
@@ -20,6 +22,7 @@ const buildProfileForm = (profile, currentUser) => ({
   email: profile?.email || currentUser?.email || '',
   location: profile?.location || '',
   currentLocation: profile?.currentLocation || profile?.location || '',
+  coordinates: profile?.coordinates || null,
   category: profile?.category || '',
   skills: Array.isArray(profile?.skills) ? profile.skills.join(', ') : '',
   languages: Array.isArray(profile?.languages) ? profile.languages.join(', ') : '',
@@ -58,18 +61,26 @@ const SettingsPage = () => {
   const isClient = userProfile?.role === 'client';
   const locationValue = useMemo(
     () =>
-      isClient
-        ? formValues.location.trim() || userProfile?.location || 'Not added'
-        : formValues.currentLocation.trim() ||
-          userProfile?.currentLocation ||
-          userProfile?.location ||
-          'Not added',
+      getLocationLabel(
+        {
+          location: isClient ? formValues.location : userProfile?.location,
+          currentLocation: isClient ? userProfile?.currentLocation : formValues.currentLocation,
+          coordinates: formValues.coordinates || userProfile?.coordinates
+        },
+        {
+          preferCurrent: isLabour,
+          fallback: 'Not added'
+        }
+      ),
     [
+      formValues.coordinates,
       formValues.currentLocation,
       formValues.location,
       isClient,
       userProfile?.currentLocation,
-      userProfile?.location
+      userProfile?.location,
+      userProfile?.coordinates,
+      isLabour
     ]
   );
   const profileInitial = useMemo(
@@ -113,9 +124,9 @@ const SettingsPage = () => {
   );
   const canSaveProfile = isLabour
     ? Boolean(
-        formValues.fullName.trim() &&
+          formValues.fullName.trim() &&
           (formValues.phoneNumber.trim() || formValues.email.trim()) &&
-          formValues.currentLocation.trim() &&
+          (formValues.currentLocation.trim() || formValues.coordinates) &&
           formValues.category &&
           formValues.skills.trim()
       )
@@ -123,7 +134,7 @@ const SettingsPage = () => {
       ? Boolean(
           formValues.fullName.trim() &&
             (formValues.phoneNumber.trim() || formValues.email.trim()) &&
-            formValues.location.trim()
+            (formValues.location.trim() || formValues.coordinates)
         )
       : Boolean(
           formValues.fullName.trim() &&
@@ -149,6 +160,7 @@ const SettingsPage = () => {
         role: userProfile.role,
         location: isClient ? formValues.location : formValues.currentLocation,
         currentLocation: isLabour ? formValues.currentLocation : '',
+        coordinates: formValues.coordinates,
         about: isLabour ? formValues.about : ''
       });
       toast.success('Profile updated successfully.');
@@ -240,19 +252,47 @@ const SettingsPage = () => {
                   placeholder="name@example.com"
                 />
                 {isClient ? (
-                  <InputField
-                    label="Location"
-                    value={formValues.location}
-                    onChange={(event) => updateFormValue('location', event.target.value)}
-                    placeholder="Gachibowli, Hyderabad"
-                  />
+                  <div className="space-y-3">
+                    <InputField
+                      label="Location"
+                      value={formValues.location}
+                      onChange={(event) => updateFormValue('location', event.target.value)}
+                      placeholder="Gachibowli, Hyderabad"
+                    />
+                    <ProfileLocationPanel
+                      roleLabel="client"
+                      locationValue={formValues.location}
+                      savedCoordinates={formValues.coordinates}
+                      onApplyLocation={({ label, coordinates }) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          location: prev.location.trim() || label,
+                          coordinates
+                        }))
+                      }
+                    />
+                  </div>
                 ) : (
-                  <InputField
-                    label="Current location"
-                    value={formValues.currentLocation}
-                    onChange={(event) => updateFormValue('currentLocation', event.target.value)}
-                    placeholder="Madhapur, Hyderabad"
-                  />
+                  <div className="space-y-3">
+                    <InputField
+                      label="Current location"
+                      value={formValues.currentLocation}
+                      onChange={(event) => updateFormValue('currentLocation', event.target.value)}
+                      placeholder="Madhapur, Hyderabad"
+                    />
+                    <ProfileLocationPanel
+                      roleLabel="labour"
+                      locationValue={formValues.currentLocation}
+                      savedCoordinates={formValues.coordinates}
+                      onApplyLocation={({ label, coordinates }) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          currentLocation: prev.currentLocation.trim() || label,
+                          coordinates
+                        }))
+                      }
+                    />
+                  </div>
                 )}
                 <SelectField
                   label="Gender"

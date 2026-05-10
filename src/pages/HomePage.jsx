@@ -276,7 +276,7 @@ const HomePage = () => {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                      Search WorkLink
+                      Search Service
                     </p>
                     <p className="truncate text-base font-semibold text-slate-950">
                       Find verified local labour
@@ -410,7 +410,7 @@ const HomePage = () => {
                       </div>
                       <p
                         className={clsx(
-                          'mt-2 text-xs font-medium',
+                          'mt-2 min-h-[1.75rem] text-[10px] font-medium leading-tight',
                           item.label === 'Home' ? 'text-slate-950' : 'text-slate-500'
                         )}
                       >

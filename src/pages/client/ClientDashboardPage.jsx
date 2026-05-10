@@ -24,10 +24,11 @@ import { fetchFeaturedLabours } from '../../services/labourService';
 import { subscribeBookingsForUser } from '../../services/bookingService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { getLocationLabel } from '../../utils/location';
 
 const sidebarItems = [
   { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { to: '/search', label: 'Search', icon: Search },
+  { to: '/search', label: 'Search Service', icon: Search },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/notifications', label: 'Alerts', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings }
@@ -110,6 +111,10 @@ const ClientDashboardPage = () => {
     }),
     [quickBookState?.labour?.category, quickBookState?.labour?.dailyWage]
   );
+  const clientLocationLabel = useMemo(
+    () => getLocationLabel(userProfile, { fallback: 'Location not added' }),
+    [userProfile]
+  );
 
   const handleQuickBook = (labour) => {
     setQuickBookState({ labour });
@@ -129,7 +134,7 @@ const ClientDashboardPage = () => {
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">Client</Badge>
-                    {userProfile?.location ? <Badge tone="slate">{userProfile.location}</Badge> : null}
+                    <Badge tone="slate">{clientLocationLabel}</Badge>
                   </div>
                   <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
                     Hello, {userProfile?.fullName ?? 'Client'}
@@ -138,7 +143,7 @@ const ClientDashboardPage = () => {
                 <div className="flex flex-wrap gap-3">
                   <Button as={Link} to="/search" size="sm">
                     <Search size={16} />
-                    Find labour
+                    Search Service
                   </Button>
                   <Button as={Link} to="/chat" variant="outline" size="sm">
                     <MessageCircle size={16} />
@@ -164,7 +169,7 @@ const ClientDashboardPage = () => {
                     className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
                   >
                     <Search size={18} className="text-brand-600" />
-                    <p className="mt-3 font-semibold text-slate-950">Search</p>
+                    <p className="mt-3 font-semibold text-slate-950">Search Service</p>
                     <p className="mt-1 text-sm text-slate-500">Browse available labour</p>
                   </Link>
                   <Link

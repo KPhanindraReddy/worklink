@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { appleProvider, auth, db, googleProvider, isFirebaseConfigured } from '../firebase/config';
+import { normalizeCoordinates } from '../utils/location';
 
 let recaptchaVerifier = null;
 const shouldUseRedirectAuth = () =>
@@ -42,6 +43,7 @@ const buildBaseProfile = (user, formValues = {}) => {
     profilePhoto: profilePhotoUrl,
     role: formValues.role || '',
     location: formValues.currentLocation || formValues.location || '',
+    coordinates: normalizeCoordinates(formValues.coordinates) || null,
     accountStatus: 'active',
     verified: false,
     updatedAt: serverTimestamp()
@@ -175,6 +177,10 @@ export const createOrUpdateUserProfile = async (user, formValues) => {
   const baseProfile = {
     ...buildBaseProfile(user, mergedBaseValues),
     role: resolvedRole,
+    coordinates:
+      normalizeCoordinates(formValues.coordinates) ||
+      normalizeCoordinates(existingUser?.coordinates) ||
+      null,
     accountStatus: existingUser?.accountStatus || 'active',
     verified: existingUser?.verified ?? false,
     profileComplete: true
@@ -222,6 +228,11 @@ export const createOrUpdateUserProfile = async (user, formValues) => {
           'currentLocation',
           existingLabour?.currentLocation || existingUser?.location || ''
         ),
+        coordinates:
+          normalizeCoordinates(formValues.coordinates) ||
+          normalizeCoordinates(existingLabour?.coordinates) ||
+          normalizeCoordinates(existingUser?.coordinates) ||
+          null,
         about: getFormValue(formValues, 'about', existingLabour?.about || ''),
         availability: getFormValue(
           formValues,
@@ -249,6 +260,11 @@ export const createOrUpdateUserProfile = async (user, formValues) => {
       clientRef,
       {
         ...baseProfile,
+        coordinates:
+          normalizeCoordinates(formValues.coordinates) ||
+          normalizeCoordinates(existingClient?.coordinates) ||
+          normalizeCoordinates(existingUser?.coordinates) ||
+          null,
         savedLabours: existingClient?.savedLabours ?? []
       },
       { merge: true }

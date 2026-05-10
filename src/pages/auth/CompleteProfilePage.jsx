@@ -8,6 +8,7 @@ import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { SelectField } from '../../components/common/SelectField';
 import { TextAreaField } from '../../components/common/TextAreaField';
+import { ProfileLocationPanel } from '../../components/location/ProfileLocationPanel';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { routeByRole, isProfileComplete } from '../../utils/authFlow';
@@ -32,6 +33,7 @@ const initialFormState = {
   languages: '',
   currentLocation: '',
   location: '',
+  coordinates: null,
   about: '',
   availability: 'Available',
   dailyWage: '',
@@ -75,7 +77,8 @@ const CompleteProfilePage = () => {
       phoneNumber: prev.phoneNumber || userProfile?.phoneNumber || currentUser?.phoneNumber || '',
       email: prev.email || userProfile?.email || currentUser?.email || '',
       currentLocation: prev.currentLocation || userProfile?.location || '',
-      location: prev.location || userProfile?.location || ''
+      location: prev.location || userProfile?.location || '',
+      coordinates: prev.coordinates || userProfile?.coordinates || null
     }));
   }, [
     currentUser?.displayName,
@@ -85,6 +88,7 @@ const CompleteProfilePage = () => {
     userProfile?.fullName,
     userProfile?.location,
     userProfile?.phoneNumber,
+    userProfile?.coordinates,
     userProfile?.email,
     userProfile?.role
   ]);
@@ -103,12 +107,12 @@ const CompleteProfilePage = () => {
             (formValues.phoneNumber.trim() || formValues.email.trim()) &&
             formValues.category &&
             formValues.skills.trim() &&
-            formValues.currentLocation.trim()
+            (formValues.currentLocation.trim() || formValues.coordinates)
         )
       : Boolean(
           formValues.fullName.trim() &&
             (formValues.phoneNumber.trim() || formValues.email.trim()) &&
-            formValues.location.trim()
+            (formValues.location.trim() || formValues.coordinates)
         );
 
   const handleSubmit = async (event) => {
@@ -125,7 +129,8 @@ const CompleteProfilePage = () => {
         ...formValues,
         role,
         location: role === 'client' ? formValues.location : formValues.currentLocation,
-        currentLocation: role === 'labour' ? formValues.currentLocation : ''
+        currentLocation: role === 'labour' ? formValues.currentLocation : '',
+        coordinates: formValues.coordinates
       });
 
       toast.success('Profile completed successfully.');
@@ -255,19 +260,47 @@ const CompleteProfilePage = () => {
                   placeholder="name@example.com"
                 />
                 {role === 'client' ? (
-                  <InputField
-                    label="Location"
-                    value={formValues.location}
-                    onChange={(event) => handleChange('location', event.target.value)}
-                    placeholder="Gachibowli, Hyderabad"
-                  />
+                  <div className="space-y-3">
+                    <InputField
+                      label="Location"
+                      value={formValues.location}
+                      onChange={(event) => handleChange('location', event.target.value)}
+                      placeholder="Gachibowli, Hyderabad"
+                    />
+                    <ProfileLocationPanel
+                      roleLabel="client"
+                      locationValue={formValues.location}
+                      savedCoordinates={formValues.coordinates}
+                      onApplyLocation={({ label, coordinates }) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          location: prev.location.trim() || label,
+                          coordinates
+                        }))
+                      }
+                    />
+                  </div>
                 ) : (
-                  <InputField
-                    label="Current location"
-                    value={formValues.currentLocation}
-                    onChange={(event) => handleChange('currentLocation', event.target.value)}
-                    placeholder="Madhapur, Hyderabad"
-                  />
+                  <div className="space-y-3">
+                    <InputField
+                      label="Current location"
+                      value={formValues.currentLocation}
+                      onChange={(event) => handleChange('currentLocation', event.target.value)}
+                      placeholder="Madhapur, Hyderabad"
+                    />
+                    <ProfileLocationPanel
+                      roleLabel="labour"
+                      locationValue={formValues.currentLocation}
+                      savedCoordinates={formValues.coordinates}
+                      onApplyLocation={({ label, coordinates }) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          currentLocation: prev.currentLocation.trim() || label,
+                          coordinates
+                        }))
+                      }
+                    />
+                  </div>
                 )}
               </div>
 

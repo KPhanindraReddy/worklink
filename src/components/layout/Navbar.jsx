@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Bell,
   BriefcaseBusiness,
@@ -14,6 +14,7 @@ import clsx from 'clsx';
 import { Button } from '../common/Button';
 import { useAuth } from '../../context/AuthContext';
 import { routeByRole } from '../../utils/authFlow';
+import { LiveLocationBadge } from './LiveLocationBadge';
 
 const linkClassName = ({ isActive }) =>
   clsx(
@@ -47,27 +48,60 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const primaryPath = currentUser ? routeByRole(userProfile?.role) : '/';
   const profileInitial = getProfileInitial(userProfile, currentUser);
+  const profileLabel = userProfile?.role === 'admin' ? 'Admin profile' : 'Profile';
 
   const baseLinks = currentUser
     ? [
         ...(userProfile?.role === 'client'
           ? [
-              { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
-              { to: '/search', label: 'Search', icon: Search }
+              {
+                to: '/client/dashboard',
+                label: 'Overview',
+                icon: LayoutDashboard,
+                matchers: ['/client/dashboard']
+              }
             ]
           : []),
         ...(userProfile?.role === 'labour'
-          ? [{ to: '/labour/dashboard', label: 'Overview', icon: LayoutDashboard }]
+          ? [
+              {
+                to: '/labour/dashboard',
+                label: 'Overview',
+                icon: LayoutDashboard,
+                matchers: ['/labour/dashboard']
+              }
+            ]
           : []),
         ...(userProfile?.role === 'admin'
-          ? [{ to: '/admin', label: 'Overview', icon: LayoutDashboard }]
+          ? [{ to: '/admin', label: 'Overview', icon: LayoutDashboard, matchers: ['/admin'] }]
           : []),
-        { to: '/about', label: 'About', icon: CircleHelp }
+        {
+          to: '/search',
+          label: 'Search Service',
+          icon: Search,
+          matchers: [
+            '/search',
+            '/booking*',
+            (nextPathname) =>
+              nextPathname.startsWith('/labour/') && nextPathname !== '/labour/dashboard'
+          ]
+        },
+        { to: '/about', label: 'About', icon: CircleHelp, matchers: ['/about'] }
       ]
     : [
-        { to: '/', label: 'Home', icon: LayoutDashboard },
-        { to: '/search', label: 'Search', icon: Search },
-        { to: '/about', label: 'About', icon: CircleHelp }
+        { to: '/', label: 'Home', icon: LayoutDashboard, matchers: ['/'] },
+        {
+          to: '/search',
+          label: 'Search Service',
+          icon: Search,
+          matchers: [
+            '/search',
+            '/booking*',
+            (nextPathname) =>
+              nextPathname.startsWith('/labour/') && nextPathname !== '/labour/dashboard'
+          ]
+        },
+        { to: '/about', label: 'About', icon: CircleHelp, matchers: ['/about'] }
       ];
 
   const quickLinks = currentUser
@@ -80,22 +114,36 @@ export const Navbar = () => {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
       <div className="page-shell flex items-center justify-between gap-3 py-3">
-        <Link to={primaryPath} className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 text-white shadow-glow">
-            <BriefcaseBusiness size={20} />
-          </div>
-          <p className="font-display text-lg font-bold text-slate-950">WorkLink</p>
-        </Link>
+        <div className="flex min-w-0 items-center gap-3">
+          <Link to={primaryPath} className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 text-white shadow-glow">
+              <BriefcaseBusiness size={20} />
+            </div>
+            <p className="font-display text-lg font-bold text-slate-950">WorkLink</p>
+          </Link>
+          {currentUser ? (
+            <LiveLocationBadge
+              currentUser={currentUser}
+              userProfile={userProfile}
+              compact
+              className="hidden max-w-[18rem] md:flex"
+            />
+          ) : null}
+        </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
           {baseLinks.map((link) => {
             const Icon = link.icon;
 
             return (
-              <NavLink key={link.to} to={link.to} className={linkClassName}>
+              <Link
+                key={link.to}
+                to={link.to}
+                className={linkClassName({ isActive: isPathActive(pathname, link.matchers) })}
+              >
                 <Icon size={15} />
                 {link.label}
-              </NavLink>
+              </Link>
             );
           })}
         </nav>
@@ -126,13 +174,13 @@ export const Navbar = () => {
                     'border-brand-200 bg-brand-50'
                 )}
                 aria-label="Open profile"
-                title="Profile"
+                title={profileLabel}
               >
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">
                   {profileInitial}
                 </span>
                 <span className="hidden max-w-[104px] truncate text-sm font-semibold text-slate-700 xl:block">
-                  {userProfile?.fullName || 'Profile'}
+                  {userProfile?.fullName || profileLabel}
                 </span>
               </Link>
             </>
@@ -170,7 +218,7 @@ export const Navbar = () => {
                     'ring-2 ring-brand-200 ring-offset-2'
                 )}
                 onClick={() => setIsOpen(false)}
-                aria-label="Open profile"
+                aria-label={`Open ${profileLabel.toLowerCase()}`}
               >
                 {profileInitial}
               </Link>
@@ -189,20 +237,27 @@ export const Navbar = () => {
 
       {isOpen ? (
         <div className="page-shell space-y-3 border-t border-slate-200 pb-4 pt-3 lg:hidden">
+          {currentUser ? (
+            <LiveLocationBadge
+              currentUser={currentUser}
+              userProfile={userProfile}
+              className="w-full"
+            />
+          ) : null}
           <div className="flex flex-col gap-1">
             {baseLinks.map((link) => {
               const Icon = link.icon;
 
               return (
-                <NavLink
+                <Link
                   key={link.to}
                   to={link.to}
-                  className={linkClassName}
+                  className={linkClassName({ isActive: isPathActive(pathname, link.matchers) })}
                   onClick={() => setIsOpen(false)}
                 >
                   <Icon size={15} />
                   {link.label}
-                </NavLink>
+                </Link>
               );
             })}
           </div>
@@ -217,9 +272,11 @@ export const Navbar = () => {
               </span>
               <span>
                 <span className="block text-sm font-semibold text-slate-950">
-                  {userProfile?.fullName || 'Profile'}
+                  {userProfile?.fullName || profileLabel}
                 </span>
-                <span className="block text-xs text-slate-500">Profile & settings</span>
+                <span className="block text-xs text-slate-500">
+                  {userProfile?.role === 'admin' ? 'Admin profile & settings' : 'Profile & settings'}
+                </span>
               </span>
             </Link>
           ) : (

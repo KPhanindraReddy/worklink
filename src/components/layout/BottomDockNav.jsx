@@ -1,8 +1,9 @@
 import clsx from 'clsx';
-import { History, House, Search, UserRound } from 'lucide-react';
+import { Bell, History, House, Search, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { routeByRole } from '../../utils/authFlow';
 
 const matchesPath = (pathname, matchers) =>
   matchers.some((matcher) => {
@@ -18,21 +19,32 @@ const matchesPath = (pathname, matchers) =>
   });
 
 export const buildBottomDockItems = ({ currentUser, userProfile }) => {
-  const recentTarget = currentUser
-    ? userProfile?.role === 'admin'
-      ? '/admin'
-      : '/recent-services'
-    : '/auth';
+  const role = userProfile?.role;
+  const homeTarget = currentUser ? routeByRole(role) : '/';
+  const servicesItem =
+    role === 'admin'
+      ? {
+          label: 'Alerts',
+          to: '/notifications',
+          icon: Bell,
+          matchers: ['/notifications']
+        }
+      : {
+          label: 'Services',
+          to: currentUser ? '/recent-services' : '/auth',
+          icon: History,
+          matchers: currentUser ? ['/recent-services'] : ['/auth']
+        };
 
   return [
     {
       label: 'Home',
-      to: '/',
+      to: homeTarget,
       icon: House,
-      matchers: ['/']
+      matchers: currentUser ? [homeTarget] : ['/']
     },
     {
-      label: 'Search',
+      label: 'Search Service',
       to: '/search',
       icon: Search,
       matchers: [
@@ -41,17 +53,12 @@ export const buildBottomDockItems = ({ currentUser, userProfile }) => {
         (pathname) => pathname.startsWith('/labour/') && pathname !== '/labour/dashboard'
       ]
     },
+    servicesItem,
     {
-      label: 'Services',
-      to: recentTarget,
-      icon: History,
-      matchers: ['/recent-services', '/client/dashboard', '/labour/dashboard', '/admin']
-    },
-    {
-      label: 'Profile',
+      label: role === 'admin' ? 'Admin' : 'Profile',
       to: currentUser ? '/settings' : '/auth',
       icon: UserRound,
-      matchers: ['/auth', '/settings', '/complete-profile']
+      matchers: currentUser ? ['/settings', '/complete-profile*'] : ['/auth']
     }
   ];
 };
@@ -97,7 +104,7 @@ export const BottomDockNav = () => {
                 </span>
                 <span
                   className={clsx(
-                    'mt-1 block text-[9px] font-medium',
+                    'mt-1 block min-h-[1.7rem] text-[8px] font-medium leading-[0.85rem]',
                     isActive ? 'text-white' : 'text-slate-500'
                   )}
                 >

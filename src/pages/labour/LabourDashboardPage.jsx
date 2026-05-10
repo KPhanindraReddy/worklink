@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Navigation,
   Phone,
+  Search,
   Settings,
   Star,
   WalletCards
@@ -36,9 +37,11 @@ import { subscribeLabourById, updateAvailability } from '../../services/labourSe
 import { createNotification } from '../../services/notificationService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { getLocationLabel } from '../../utils/location';
 
 const sidebarItems = [
   { to: '/labour/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/search', label: 'Search Service', icon: Search },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/notifications', label: 'Alerts', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings }
@@ -49,7 +52,10 @@ const buildAvatarUrl = (fullName) =>
 
 const buildOwnLabourProfile = ({ currentUser, userProfile }) => {
   const fullName = userProfile?.fullName || currentUser?.displayName || 'Your labour profile';
-  const currentLocation = userProfile?.currentLocation || userProfile?.location || 'Location not set';
+  const currentLocation = getLocationLabel(userProfile, {
+    preferCurrent: true,
+    fallback: 'Location not set'
+  });
 
   return {
     id: currentUser?.uid ?? '',
@@ -57,6 +63,7 @@ const buildOwnLabourProfile = ({ currentUser, userProfile }) => {
     fullName,
     category: userProfile?.category || 'Labour professional',
     currentLocation,
+    coordinates: userProfile?.coordinates || null,
     profilePhoto: userProfile?.profilePhoto || currentUser?.photoURL || buildAvatarUrl(fullName),
     phoneNumber: userProfile?.phoneNumber || currentUser?.phoneNumber || '',
     availability: userProfile?.availability || 'Available',
@@ -99,6 +106,10 @@ const LabourDashboardPage = () => {
     ]
   );
   const dashboardProfile = profile ?? ownProfile;
+  const dashboardLocationLabel = useMemo(
+    () => getLocationLabel(dashboardProfile, { preferCurrent: true, fallback: 'Location not set' }),
+    [dashboardProfile]
+  );
   const isProfileMissing = !dashboardLoading && !profile;
   const activeWorkBookings = useMemo(
     () => bookings.filter((booking) => ['accepted', 'in_progress'].includes(booking.status)),
@@ -476,7 +487,7 @@ const LabourDashboardPage = () => {
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">{dashboardProfile.category}</Badge>
-                    <Badge tone="slate">{dashboardProfile.currentLocation}</Badge>
+                    <Badge tone="slate">{dashboardLocationLabel}</Badge>
                   </div>
                   <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
                     {dashboardProfile.fullName}

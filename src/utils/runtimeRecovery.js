@@ -2,6 +2,7 @@ const RECOVERY_PREFIX = 'worklink-runtime-recovery';
 const LEGACY_CLEANUP_KEY = 'worklink-legacy-cache-cleanup';
 const RECOVERY_SEARCH_PARAM = '__worklink_recovery';
 const RECOVERY_TIMESTAMP_PARAM = '__worklink_recovered_at';
+const LEGACY_RUNTIME_RECOVERY_REASON = 'legacy-runtime';
 
 const buildRecoveryKey = (reason) => `${RECOVERY_PREFIX}:${reason}`;
 const isBrowser = () => typeof window !== 'undefined';
@@ -36,22 +37,40 @@ const reloadApp = (reason) => {
   window.location.replace(url.toString());
 };
 
+const getActiveRecoveryReason = () => {
+  if (!isBrowser()) {
+    return '';
+  }
+
+  try {
+    return new URL(window.location.href).searchParams.get(RECOVERY_SEARCH_PARAM) || '';
+  } catch {
+    return '';
+  }
+};
+
 const clearBrowserCaches = async () => {
   if (!('caches' in window)) {
-    return;
+    return { hadCaches: false };
   }
 
   const cacheKeys = await window.caches.keys();
   await Promise.allSettled(cacheKeys.map((cacheKey) => window.caches.delete(cacheKey)));
+  return { hadCaches: cacheKeys.length > 0 };
 };
 
 const unregisterServiceWorkers = async () => {
   if (!('serviceWorker' in navigator)) {
-    return;
+    return { hadRegistrations: false, hadController: false };
   }
 
   const registrations = await navigator.serviceWorker.getRegistrations();
+  const hadController = Boolean(navigator.serviceWorker.controller);
   await Promise.allSettled(registrations.map((registration) => registration.unregister()));
+  return {
+    hadRegistrations: registrations.length > 0,
+    hadController
+  };
 };
 
 const cleanupRecoveryParams = () => {
@@ -105,10 +124,14 @@ export const cleanupLegacyRuntimeState = async () => {
   cleanupRecoveryParams();
 
   try {
-    await unregisterServiceWorkers();
-    await clearBrowserCaches();
+    const serviceWorkerState = await unregisterServiceWorkers();
+    const cacheState = await clearBrowserCaches();
     storage?.setItem(LEGACY_CLEANUP_KEY, 'done');
-    return true;
+    return Boolean(
+      serviceWorkerState.hadRegistrations ||
+        serviceWorkerState.hadController ||
+        cacheState.hadCaches
+    );
   } catch (cleanupError) {
     console.warn('WorkLink legacy cache cleanup skipped:', cleanupError);
     return false;
@@ -157,7 +180,17 @@ export const installRuntimeRecovery = () => {
   };
 
   cleanupRecoveryParams();
-  cleanupLegacyRuntimeState();
+  cleanupLegacyRuntimeState().then((didCleanup) => {
+    if (!didCleanup) {
+      return;
+    }
+
+    if (getActiveRecoveryReason() === LEGACY_RUNTIME_RECOVERY_REASON) {
+      return;
+    }
+
+    reloadApp(LEGACY_RUNTIME_RECOVERY_REASON);
+  });
 
   window.addEventListener('vite:preloadError', (event) => {
     event.preventDefault();

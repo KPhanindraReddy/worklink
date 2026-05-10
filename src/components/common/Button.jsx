@@ -19,10 +19,10 @@ export const Button = ({
 }) => (
     <Component
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-[rgb(var(--ring))]/15 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
-        size === 'sm' && 'px-3 py-2 text-sm',
-        size === 'md' && 'px-4 py-2.5 text-sm',
-        size === 'lg' && 'px-5 py-3 text-base',
+        'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]/15 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+        size === 'sm' && 'px-2.5 py-2 text-[13px]',
+        size === 'md' && 'px-3.5 py-2.5 text-[13px]',
+        size === 'lg' && 'px-4 py-2.5 text-sm',
       variants[variant],
       className
     )}

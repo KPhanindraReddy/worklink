@@ -12,6 +12,7 @@ const SearchPage = lazy(() => import('./pages/shared/SearchPage'));
 const LabourProfilePage = lazy(() => import('./pages/shared/LabourProfilePage'));
 const ChatPage = lazy(() => import('./pages/shared/ChatPage'));
 const NotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'));
+const RecentServicesPage = lazy(() => import('./pages/shared/RecentServicesPage'));
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const AboutContactPage = lazy(() => import('./pages/shared/AboutContactPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
@@ -60,6 +61,14 @@ const App = () => (
         element={
           <ProtectedRoute allowedRoles={['labour', 'client', 'admin']}>
             <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recent-services"
+        element={
+          <ProtectedRoute allowedRoles={['labour', 'client']}>
+            <RecentServicesPage />
           </ProtectedRoute>
         }
       />

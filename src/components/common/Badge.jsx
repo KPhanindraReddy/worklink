@@ -11,7 +11,7 @@ const tones = {
 export const Badge = ({ className, tone = 'blue', children }) => (
   <span
     className={clsx(
-      'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+      'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold',
       tones[tone],
       className
     )}

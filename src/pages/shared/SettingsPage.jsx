@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ShieldCheck, UserRound } from 'lucide-react';
+import { CheckCircle2, UserRound } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -54,12 +54,63 @@ const SettingsPage = () => {
     () => (userProfile?.role ? `${userProfile.role} account` : 'No role assigned'),
     [userProfile?.role]
   );
+  const isLabour = userProfile?.role === 'labour';
+  const isClient = userProfile?.role === 'client';
+  const locationValue = useMemo(
+    () =>
+      isClient
+        ? formValues.location.trim() || userProfile?.location || 'Not added'
+        : formValues.currentLocation.trim() ||
+          userProfile?.currentLocation ||
+          userProfile?.location ||
+          'Not added',
+    [
+      formValues.currentLocation,
+      formValues.location,
+      isClient,
+      userProfile?.currentLocation,
+      userProfile?.location
+    ]
+  );
   const profileInitial = useMemo(
     () => (userProfile?.fullName || currentUser?.displayName || 'U').trim().charAt(0).toUpperCase(),
     [currentUser?.displayName, userProfile?.fullName]
   );
-  const isLabour = userProfile?.role === 'labour';
-  const isClient = userProfile?.role === 'client';
+  const summaryItems = useMemo(
+    () => [
+      { label: 'Name', value: formValues.fullName.trim() || 'Not added' },
+      { label: 'Age', value: formValues.age || 'Not added' },
+      { label: 'Phone', value: formValues.phoneNumber.trim() || 'Not added' },
+      { label: 'Email', value: formValues.email.trim() || 'Not added' },
+      { label: isClient ? 'Location' : 'Current location', value: locationValue },
+      { label: 'Gender', value: formValues.gender || 'Not added' },
+      ...(isLabour
+        ? [
+            { label: 'Category', value: formValues.category || 'Not added' },
+            {
+              label: 'Experience',
+              value: formValues.experienceYears ? `${formValues.experienceYears} years` : 'Not added'
+            },
+            { label: 'Daily wage', value: formValues.dailyWage || 'Not added' },
+            { label: 'Availability', value: formValues.availability || 'Not added' }
+          ]
+        : [])
+    ],
+    [
+      formValues.age,
+      formValues.availability,
+      formValues.category,
+      formValues.dailyWage,
+      formValues.email,
+      formValues.experienceYears,
+      formValues.fullName,
+      formValues.gender,
+      formValues.phoneNumber,
+      isClient,
+      isLabour,
+      locationValue
+    ]
+  );
   const canSaveProfile = isLabour
     ? Boolean(
         formValues.fullName.trim() &&
@@ -130,11 +181,11 @@ const SettingsPage = () => {
       <PageSEO title="Profile & Settings" description="Manage your WorkLink profile details, preferences, and verification state." />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="page-shell grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
           <div className="space-y-6">
-            <Card className="overflow-hidden rounded-[36px]">
-              <div className="grid gap-5 md:grid-cols-[auto_1fr] md:items-center">
-                <div className="grid h-20 w-20 place-items-center rounded-[24px] bg-brand-600 text-2xl font-bold text-white shadow-glow">
+            <Card className="overflow-hidden rounded-[30px]">
+              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
+                <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-brand-600 text-xl font-bold text-white shadow-glow">
                   {profileInitial}
                 </div>
                 <div>
@@ -144,15 +195,23 @@ const SettingsPage = () => {
                       {userProfile?.verified ? 'Verified profile' : 'Verification pending'}
                     </Badge>
                   </div>
-                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Profile and settings</h1>
+                  <h1 className="mt-2 text-2xl font-bold text-slate-950">
+                    {formValues.fullName.trim() || 'Profile'}
+                  </h1>
+                  <p className="mt-1 text-[13px] text-slate-500">
+                    Personal details first, settings below.
+                  </p>
                 </div>
               </div>
             </Card>
 
-            <Card className="rounded-[36px]">
+            <Card className="rounded-[30px]">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-semibold text-slate-950">Profile details</h2>
+                  <h2 className="text-xl font-semibold text-slate-950">Profile details</h2>
+                  <p className="mt-1 text-[13px] text-slate-500">
+                    Update your name, age, contact, and account information.
+                  </p>
                 </div>
                 <Button onClick={saveProfile} disabled={savingProfile || !canSaveProfile}>
                   <CheckCircle2 size={16} />
@@ -160,7 +219,7 @@ const SettingsPage = () => {
                 </Button>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <InputField
                   label="Full name"
                   value={formValues.fullName}
@@ -195,80 +254,83 @@ const SettingsPage = () => {
                     placeholder="Madhapur, Hyderabad"
                   />
                 )}
+                <SelectField
+                  label="Gender"
+                  placeholder="Select gender"
+                  value={formValues.gender}
+                  options={['Male', 'Female', 'Other']}
+                  onChange={(event) => updateFormValue('gender', event.target.value)}
+                />
+                <InputField
+                  label="Age"
+                  type="number"
+                  value={formValues.age}
+                  onChange={(event) => updateFormValue('age', event.target.value)}
+                  placeholder="28"
+                />
               </div>
 
               {isLabour ? (
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <SelectField
-                    label="Work category"
-                    placeholder="Select category"
-                    value={formValues.category}
-                    options={workCategories}
-                    onChange={(event) => updateFormValue('category', event.target.value)}
-                  />
-                  <SelectField
-                    label="Availability"
-                    value={formValues.availability}
-                    options={availabilityOptions}
-                    onChange={(event) => updateFormValue('availability', event.target.value)}
-                  />
-                  <InputField
-                    label="Skills"
-                    value={formValues.skills}
-                    onChange={(event) => updateFormValue('skills', event.target.value)}
-                    placeholder="Electrician, CCTV installation, Internet/WiFi setup"
-                    hint="Use commas to separate multiple skills."
-                    className="md:col-span-2"
-                  />
-                  <InputField
-                    label="Languages known"
-                    value={formValues.languages}
-                    onChange={(event) => updateFormValue('languages', event.target.value)}
-                    placeholder={languageOptions.join(', ')}
-                    hint="Use commas to separate multiple languages."
-                    className="md:col-span-2"
-                  />
-                  <SelectField
-                    label="Gender"
-                    placeholder="Select gender"
-                    value={formValues.gender}
-                    options={['Male', 'Female', 'Other']}
-                    onChange={(event) => updateFormValue('gender', event.target.value)}
-                  />
-                  <InputField
-                    label="Age"
-                    type="number"
-                    value={formValues.age}
-                    onChange={(event) => updateFormValue('age', event.target.value)}
-                    placeholder="28"
-                  />
-                  <InputField
-                    label="Education"
-                    value={formValues.education}
-                    onChange={(event) => updateFormValue('education', event.target.value)}
-                    placeholder="SSC / ITI / Diploma / Degree"
-                  />
-                  <InputField
-                    label="Experience (years)"
-                    type="number"
-                    value={formValues.experienceYears}
-                    onChange={(event) => updateFormValue('experienceYears', event.target.value)}
-                    placeholder="5"
-                  />
-                  <InputField
-                    label="Expected daily wage"
-                    type="number"
-                    value={formValues.dailyWage}
-                    onChange={(event) => updateFormValue('dailyWage', event.target.value)}
-                    placeholder="1500"
-                  />
-                  <div className="md:col-span-2">
-                    <TextAreaField
-                      label="About"
-                      value={formValues.about}
-                      onChange={(event) => updateFormValue('about', event.target.value)}
-                      placeholder="Describe your work style, strengths, and preferred jobs."
+                <div className="mt-6 border-t border-slate-200 pt-5">
+                  <h3 className="text-base font-semibold text-slate-950">Work details</h3>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <SelectField
+                      label="Work category"
+                      placeholder="Select category"
+                      value={formValues.category}
+                      options={workCategories}
+                      onChange={(event) => updateFormValue('category', event.target.value)}
                     />
+                    <SelectField
+                      label="Availability"
+                      value={formValues.availability}
+                      options={availabilityOptions}
+                      onChange={(event) => updateFormValue('availability', event.target.value)}
+                    />
+                    <InputField
+                      label="Skills"
+                      value={formValues.skills}
+                      onChange={(event) => updateFormValue('skills', event.target.value)}
+                      placeholder="Electrician, CCTV installation, Internet/WiFi setup"
+                      hint="Use commas to separate multiple skills."
+                      className="md:col-span-2"
+                    />
+                    <InputField
+                      label="Languages known"
+                      value={formValues.languages}
+                      onChange={(event) => updateFormValue('languages', event.target.value)}
+                      placeholder={languageOptions.join(', ')}
+                      hint="Use commas to separate multiple languages."
+                      className="md:col-span-2"
+                    />
+                    <InputField
+                      label="Education"
+                      value={formValues.education}
+                      onChange={(event) => updateFormValue('education', event.target.value)}
+                      placeholder="SSC / ITI / Diploma / Degree"
+                    />
+                    <InputField
+                      label="Experience (years)"
+                      type="number"
+                      value={formValues.experienceYears}
+                      onChange={(event) => updateFormValue('experienceYears', event.target.value)}
+                      placeholder="5"
+                    />
+                    <InputField
+                      label="Expected daily wage"
+                      type="number"
+                      value={formValues.dailyWage}
+                      onChange={(event) => updateFormValue('dailyWage', event.target.value)}
+                      placeholder="1500"
+                    />
+                    <div className="md:col-span-2">
+                      <TextAreaField
+                        label="About"
+                        value={formValues.about}
+                        onChange={(event) => updateFormValue('about', event.target.value)}
+                        placeholder="Describe your work style, strengths, and preferred jobs."
+                      />
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -276,35 +338,39 @@ const SettingsPage = () => {
           </div>
 
           <div className="space-y-6">
-            <Card>
+            <Card className="rounded-[30px]">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-100 text-brand-700">
-                  <ShieldCheck size={20} />
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-100 text-brand-700">
+                  <UserRound size={18} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Verification status</h2>
-                  <p className="text-sm text-slate-600">Trust and account status.</p>
+                  <h2 className="text-lg font-semibold text-slate-950">Profile summary</h2>
+                  <p className="text-[13px] text-slate-500">Arranged account details.</p>
                 </div>
               </div>
-              <div className="mt-6 rounded-3xl bg-slate-50 p-5 text-sm text-slate-700">
-                <p>Name: {userProfile?.fullName || 'Not added'}</p>
-                <p className="mt-2">Phone: {userProfile?.phoneNumber || 'Not added'}</p>
-                <p className="mt-2">Email: {userProfile?.email || 'Not added'}</p>
-                {isLabour ? <p className="mt-2">Category: {userProfile?.category || 'Not added'}</p> : null}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {summaryItems.map((item) => (
+                  <div key={item.label} className="rounded-2xl bg-slate-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">{item.value}</p>
+                  </div>
+                ))}
               </div>
             </Card>
 
-            <Card>
+            <Card className="rounded-[30px]">
               <div className="flex items-center gap-3">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-700">
                   <UserRound size={20} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Contact preferences</h2>
-                  <p className="text-sm text-slate-600">Manage alerts.</p>
+                  <h2 className="text-lg font-semibold text-slate-950">Settings</h2>
+                  <p className="text-[13px] text-slate-500">Notification preferences.</p>
                 </div>
               </div>
-              <div className="mt-5 space-y-4 text-sm text-slate-600">
+              <div className="mt-5 space-y-3 text-sm text-slate-600">
                 {[
                   ['emailAlerts', 'Email alerts'],
                   ['whatsappAlerts', 'WhatsApp reminders']
@@ -328,9 +394,9 @@ const SettingsPage = () => {
               </div>
             </Card>
 
-            <Card>
-              <h2 className="text-xl font-semibold text-slate-950">Session</h2>
-              <p className="mt-3 text-sm text-slate-600">Log out from your account.</p>
+            <Card className="rounded-[30px]">
+              <h2 className="text-lg font-semibold text-slate-950">Session</h2>
+              <p className="mt-2 text-[13px] text-slate-500">Log out when you finish.</p>
               <div className="mt-6">
                 <Button variant="outline" onClick={logout}>
                   Logout

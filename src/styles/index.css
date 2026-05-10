@@ -69,11 +69,11 @@
   }
 
   .surface-card {
-    @apply rounded-3xl border border-slate-200 bg-[rgb(var(--surface))] shadow-soft;
+    @apply rounded-[24px] border border-slate-200 bg-[rgb(var(--surface))] shadow-soft;
   }
 
   .section-space {
-    @apply py-10 md:py-14;
+    @apply py-8 md:py-10;
   }
 
   .text-gradient {

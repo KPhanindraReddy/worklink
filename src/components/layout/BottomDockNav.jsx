@@ -1,9 +1,8 @@
 import clsx from 'clsx';
-import { Bell, CircleHelp, House, LayoutGrid, MessageCircle, UserRound } from 'lucide-react';
+import { History, House, Search, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { resolvePostAuthPath } from '../../utils/authFlow';
 
 const matchesPath = (pathname, matchers) =>
   matchers.some((matcher) => {
@@ -19,71 +18,40 @@ const matchesPath = (pathname, matchers) =>
   });
 
 export const buildBottomDockItems = ({ currentUser, userProfile }) => {
-  const homeTarget = currentUser ? resolvePostAuthPath({ profile: userProfile }) : '/';
-
-  if (currentUser) {
-    return [
-      {
-        label: 'Home',
-        to: homeTarget,
-        icon: House,
-        matchers: ['/', '/client/dashboard', '/labour/dashboard', '/admin']
-      },
-      {
-        label: 'Search',
-        to: '/search',
-        icon: LayoutGrid,
-        matchers: [
-          '/search',
-          '/booking*',
-          (pathname) => pathname.startsWith('/labour/') && pathname !== '/labour/dashboard'
-        ]
-      },
-      {
-        label: 'Chat',
-        to: '/chat',
-        icon: MessageCircle,
-        matchers: ['/chat']
-      },
-      {
-        label: 'Alerts',
-        to: '/notifications',
-        icon: Bell,
-        matchers: ['/notifications']
-      },
-      {
-        label: 'Profile',
-        to: '/settings',
-        icon: UserRound,
-        matchers: ['/settings', '/complete-profile']
-      }
-    ];
-  }
+  const recentTarget = currentUser
+    ? userProfile?.role === 'admin'
+      ? '/admin'
+      : '/recent-services'
+    : '/auth';
 
   return [
     {
       label: 'Home',
-      to: homeTarget,
+      to: '/',
       icon: House,
       matchers: ['/']
     },
     {
       label: 'Search',
       to: '/search',
-      icon: LayoutGrid,
-      matchers: ['/search', '/booking*']
+      icon: Search,
+      matchers: [
+        '/search',
+        '/booking*',
+        (pathname) => pathname.startsWith('/labour/') && pathname !== '/labour/dashboard'
+      ]
     },
     {
-      label: 'About',
-      to: '/about',
-      icon: CircleHelp,
-      matchers: ['/about']
+      label: 'Services',
+      to: recentTarget,
+      icon: History,
+      matchers: ['/recent-services', '/client/dashboard', '/labour/dashboard', '/admin']
     },
     {
-      label: 'Login',
-      to: '/auth',
+      label: 'Profile',
+      to: currentUser ? '/settings' : '/auth',
       icon: UserRound,
-      matchers: ['/auth', '/complete-profile']
+      matchers: ['/auth', '/settings', '/complete-profile']
     }
   ];
 };
@@ -97,10 +65,10 @@ export const BottomDockNav = () => {
   );
 
   return (
-    <div className="app-bottom-dock pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 md:px-6">
-      <nav className="pointer-events-auto w-full max-w-[30rem] rounded-[28px] border border-white/80 bg-white/94 p-1.5 shadow-[0_16px_42px_rgba(15,23,42,0.16)] backdrop-blur-2xl md:max-w-[36rem]">
+    <div className="app-bottom-dock pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3">
+      <nav className="pointer-events-auto w-full max-w-[21rem] rounded-[22px] border border-white/80 bg-white/94 p-1 shadow-[0_10px_28px_rgba(15,23,42,0.14)] backdrop-blur-2xl">
         <div
-          className="grid gap-1.5"
+          className="grid gap-1"
           style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
         >
           {items.map((item) => {
@@ -113,23 +81,23 @@ export const BottomDockNav = () => {
                 to={item.to}
                 aria-current={isActive ? 'page' : undefined}
                 className={clsx(
-                  'rounded-[22px] border px-1 py-2 text-center transition duration-200 md:px-1.5',
+                  'rounded-[18px] border px-0.5 py-1.5 text-center transition duration-200',
                   isActive
-                    ? 'border-slate-950 bg-slate-950 shadow-[0_12px_28px_rgba(15,23,42,0.24)]'
+                    ? 'border-slate-950 bg-slate-950 shadow-[0_10px_20px_rgba(15,23,42,0.2)]'
                     : 'border-transparent bg-white text-slate-500 hover:border-slate-200 hover:bg-slate-50'
                 )}
               >
                 <span
                   className={clsx(
-                    'mx-auto grid h-8 w-8 place-items-center rounded-xl transition',
+                    'mx-auto grid h-6 w-6 place-items-center rounded-lg transition',
                     isActive ? 'bg-white/12 text-white' : 'bg-slate-100 text-slate-500'
                   )}
                 >
-                  <Icon size={15} />
+                  <Icon size={13} />
                 </span>
                 <span
                   className={clsx(
-                    'mt-1.5 block text-[10px] font-medium md:text-[11px]',
+                    'mt-1 block text-[9px] font-medium',
                     isActive ? 'text-white' : 'text-slate-500'
                   )}
                 >

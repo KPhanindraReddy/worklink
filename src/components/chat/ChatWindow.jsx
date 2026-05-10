@@ -15,8 +15,8 @@ export const ChatWindow = ({ conversation, messages, currentUserId, onSend }) =>
     return (
       <Card className="grid min-h-[520px] place-items-center text-center">
         <div>
-          <h3 className="text-xl font-semibold text-slate-950 dark:text-white">Choose a conversation</h3>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Choose a conversation</h3>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
             Open any booking conversation to chat, share updates, and confirm work.
           </p>
         </div>
@@ -26,13 +26,13 @@ export const ChatWindow = ({ conversation, messages, currentUserId, onSend }) =>
 
   return (
     <div className="surface-card flex min-h-[520px] flex-col overflow-hidden">
-      <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+      <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
+            <h2 className="text-base font-semibold text-slate-950 dark:text-white">
               {conversation.displayName || conversation.participantName}
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-[13px] text-slate-500 dark:text-slate-400">
               {typingState ? 'Typing...' : conversation.online ? 'Online now' : 'Away'}
             </p>
           </div>
@@ -47,13 +47,13 @@ export const ChatWindow = ({ conversation, messages, currentUserId, onSend }) =>
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((message) => {
           const isMine = message.senderId === currentUserId;
           return (
             <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div
-                className={`max-w-[80%] rounded-3xl px-4 py-3 text-sm shadow-sm ${
+                className={`max-w-[80%] rounded-[20px] px-3.5 py-2.5 text-[13px] shadow-sm ${
                   isMine
                     ? 'bg-brand-600 text-white'
                     : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
@@ -81,7 +81,7 @@ export const ChatWindow = ({ conversation, messages, currentUserId, onSend }) =>
       </div>
 
       <form
-        className="border-t border-slate-200 px-4 py-4 dark:border-slate-800"
+        className="border-t border-slate-200 px-4 py-3 dark:border-slate-800"
         onSubmit={(event) => {
           event.preventDefault();
           if (!draft.trim()) {
@@ -91,15 +91,15 @@ export const ChatWindow = ({ conversation, messages, currentUserId, onSend }) =>
           setDraft('');
         }}
       >
-        <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap">
           <Button type="button" variant="ghost" size="sm">
-            <ImagePlus size={18} />
+            <ImagePlus size={16} />
           </Button>
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Type a message..."
-            className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-brand-500/20"
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-brand-500/20"
           />
           <Button type="submit" className="w-full sm:w-auto">
             <SendHorizontal size={16} />

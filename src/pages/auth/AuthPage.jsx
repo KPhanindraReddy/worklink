@@ -6,6 +6,7 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
+import { Skeleton } from '../../components/common/Skeleton';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { isHiddenAdminAccount } from '../../services/authService';
@@ -489,6 +490,26 @@ const AuthPage = () => {
       setSubmitting(false);
     }
   };
+
+  if (loading || processingRedirectAuth || (currentUser && !submitting)) {
+    return (
+      <AppShell>
+        <PageSEO
+          title="Login / Signup"
+          description="Join WorkLink as labour or client using phone OTP, Google login, Apple login, or email and password."
+        />
+        <section className="section-space">
+          <div className="page-shell max-w-3xl">
+            <Card className="rounded-[28px] p-6 md:p-8">
+              <Skeleton className="h-9 w-48" />
+              <Skeleton className="mt-6 h-12 w-full" />
+              <Skeleton className="mt-4 h-12 w-full" />
+            </Card>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

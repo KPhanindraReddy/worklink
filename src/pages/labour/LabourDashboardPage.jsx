@@ -469,6 +469,38 @@ const LabourDashboardPage = () => {
     }
   };
 
+  if (dashboardLoading) {
+    return (
+      <AppShell>
+        <PageSEO title="Labour Dashboard" description="Manage your labour profile, availability, bookings, work history, and earnings." />
+
+        <section className="section-space">
+          <div className="page-shell grid gap-6 xl:grid-cols-[280px_1fr]">
+            <DashboardSidebar items={sidebarItems} />
+
+            <div className="space-y-6">
+              <Card className="overflow-hidden rounded-[28px]">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="mt-5 h-12 w-72 max-w-full" />
+                <Skeleton className="mt-4 h-20 w-full" />
+              </Card>
+
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {['completed', 'pending', 'rating', 'earnings'].map((item) => (
+                  <Card key={item}>
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="mt-3 h-8 w-20" />
+                    <Skeleton className="mt-3 h-4 w-36" />
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <PageSEO title="Labour Dashboard" description="Manage your labour profile, availability, bookings, work history, and earnings." />

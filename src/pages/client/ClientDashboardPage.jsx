@@ -17,6 +17,7 @@ import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { PageSEO } from '../../components/common/PageSEO';
+import { Skeleton } from '../../components/common/Skeleton';
 import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { AppShell } from '../../components/layout/AppShell';
 import { MetricsGrid } from '../../components/dashboard/MetricsGrid';
@@ -55,41 +56,55 @@ const getBookingTone = (status) => {
 const ClientDashboardPage = () => {
   const { currentUser, userProfile } = useAuth();
   const [featuredLabours, setFeaturedLabours] = useState([]);
+  const [featuredLaboursLoading, setFeaturedLaboursLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
   const [quickBookState, setQuickBookState] = useState(null);
 
   useEffect(() => {
-    fetchFeaturedLabours(6).then((items) => {
-      const prioritized = [...items].sort((a, b) => {
-        if (a.availability === b.availability) {
+    setFeaturedLaboursLoading(true);
+    fetchFeaturedLabours(6)
+      .then((items) => {
+        const prioritized = [...items].sort((a, b) => {
+          if (a.availability === b.availability) {
+            return Number(b.rating || 0) - Number(a.rating || 0);
+          }
+
+          if (a.availability === 'Available') {
+            return -1;
+          }
+
+          if (b.availability === 'Available') {
+            return 1;
+          }
+
           return Number(b.rating || 0) - Number(a.rating || 0);
-        }
+        });
 
-        if (a.availability === 'Available') {
-          return -1;
-        }
-
-        if (b.availability === 'Available') {
-          return 1;
-        }
-
-        return Number(b.rating || 0) - Number(a.rating || 0);
-      });
-
-      setFeaturedLabours(prioritized.slice(0, 4));
-    });
+        setFeaturedLabours(prioritized.slice(0, 4));
+      })
+      .catch((error) => toast.error(getFirebaseErrorMessage(error)))
+      .finally(() => setFeaturedLaboursLoading(false));
   }, []);
 
   useEffect(() => {
     if (!currentUser) {
       setBookings([]);
+      setBookingsLoading(false);
       return undefined;
     }
 
+    setBookingsLoading(true);
     return subscribeBookingsForUser(
       { userId: currentUser.uid, role: 'client' },
-      setBookings,
-      (error) => toast.error(getFirebaseErrorMessage(error))
+      (nextBookings) => {
+        setBookings(nextBookings);
+        setBookingsLoading(false);
+      },
+      (error) => {
+        setBookingsLoading(false);
+        toast.error(getFirebaseErrorMessage(error));
+      }
     );
   }, [currentUser?.uid]);
 
@@ -105,6 +120,7 @@ const ClientDashboardPage = () => {
       { label: 'Budgeted spend', value: formatCurrency(spend), hint: 'Money planned across requests' }
     ];
   }, [bookings, featuredLabours]);
+  const metricsLoading = bookingsLoading || featuredLaboursLoading;
   const trackedBookings = useMemo(() => bookings.slice(0, 4), [bookings]);
   const quickBookDefaults = useMemo(
     () => ({
@@ -155,7 +171,7 @@ const ClientDashboardPage = () => {
               </div>
             </Card>
 
-            <MetricsGrid items={metrics} />
+            <MetricsGrid items={metrics} loading={metricsLoading} />
 
             <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
               <Card>
@@ -196,7 +212,12 @@ const ClientDashboardPage = () => {
               <Card>
                 <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Request tracking</h2>
                 <div className="mt-5 space-y-4">
-                  {trackedBookings.length ? (
+                  {bookingsLoading ? (
+                    <>
+                      <Skeleton className="h-24 w-full" />
+                      <Skeleton className="h-24 w-full" />
+                    </>
+                  ) : trackedBookings.length ? (
                     trackedBookings.map((booking) => (
                       <div key={booking.id} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
                         <div className="flex items-center justify-between gap-3">

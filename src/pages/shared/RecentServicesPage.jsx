@@ -7,6 +7,7 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
 import { PageSEO } from '../../components/common/PageSEO';
+import { Skeleton } from '../../components/common/Skeleton';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeBookingsForUser } from '../../services/bookingService';
@@ -37,19 +38,28 @@ const formatStatusLabel = (status) =>
 const RecentServicesPage = () => {
   const { currentUser, userProfile } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
   const role = userProfile?.role === 'labour' ? 'labour' : 'client';
   const subjectLabel = role === 'labour' ? 'Client' : 'Worker';
 
   useEffect(() => {
     if (!currentUser?.uid) {
       setBookings([]);
+      setBookingsLoading(false);
       return undefined;
     }
 
+    setBookingsLoading(true);
     return subscribeBookingsForUser(
       { userId: currentUser.uid, role },
-      setBookings,
-      (error) => toast.error(getFirebaseErrorMessage(error))
+      (nextBookings) => {
+        setBookings(nextBookings);
+        setBookingsLoading(false);
+      },
+      (error) => {
+        setBookingsLoading(false);
+        toast.error(getFirebaseErrorMessage(error));
+      }
     );
   }, [currentUser?.uid, role]);
 
@@ -97,7 +107,7 @@ const RecentServicesPage = () => {
                   </p>
                 </div>
               </div>
-              <Badge tone="slate">{bookings.length} total</Badge>
+              {bookingsLoading ? <Skeleton className="h-7 w-20" /> : <Badge tone="slate">{bookings.length} total</Badge>}
             </div>
           </Card>
 
@@ -105,12 +115,21 @@ const RecentServicesPage = () => {
             {summaryItems.map((item) => (
               <Card key={item.label} className="rounded-[24px]">
                 <p className="text-[12px] text-slate-500">{item.label}</p>
-                <p className="mt-2 font-display text-2xl font-bold text-slate-950">{item.value}</p>
+                {bookingsLoading ? (
+                  <Skeleton className="mt-3 h-8 w-16" />
+                ) : (
+                  <p className="mt-2 font-display text-2xl font-bold text-slate-950">{item.value}</p>
+                )}
               </Card>
             ))}
           </div>
 
-          {bookings.length ? (
+          {bookingsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+            </div>
+          ) : bookings.length ? (
             <div className="space-y-3">
               {bookings.map((booking) => (
                 <Card key={booking.id} className="rounded-[28px]">

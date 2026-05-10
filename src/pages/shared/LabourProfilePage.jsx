@@ -24,8 +24,13 @@ const LabourProfilePage = () => {
     return subscribeLabourById(labourId, setLabour, () => setLabour(null));
   }, [labourId]);
 
-  const canRevealContact = Boolean(userProfile?.role === 'client' && userProfile?.verified && labour?.verified);
   const isClient = userProfile?.role === 'client';
+  const canRevealContact = Boolean(isClient && labour?.verified);
+  const callButtonLabel = canRevealContact
+    ? 'Call now'
+    : isClient
+      ? 'Labour verification required'
+      : 'Client account required';
 
   if (!labour) {
     return (
@@ -115,11 +120,11 @@ const LabourProfilePage = () => {
                     className={!canRevealContact ? 'pointer-events-none opacity-60' : ''}
                   >
                     <Phone size={16} />
-                    {canRevealContact ? 'Call now' : 'Verify to unlock call'}
+                    {callButtonLabel}
                   </Button>
                 </div>
                 <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-                  Direct phone access unlocks when both accounts are verified.
+                  Direct phone access unlocks after the labour profile is verified.
                 </p>
               </div>
             </div>

@@ -17,6 +17,7 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
+import { Skeleton } from '../../components/common/Skeleton';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { AppShell } from '../../components/layout/AppShell';
@@ -42,6 +43,7 @@ const AdminDashboardPage = () => {
     categories: [],
     pendingLabours: []
   });
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [labourDirectory, setLabourDirectory] = useState({
     items: [],
     cursor: null,
@@ -60,8 +62,15 @@ const AdminDashboardPage = () => {
   });
 
   const loadOverview = async () => {
-    const response = await getAdminOverview();
-    setOverview(response);
+    setOverviewLoading(true);
+    try {
+      const response = await getAdminOverview();
+      setOverview(response);
+    } catch (error) {
+      toast.error(getFirebaseErrorMessage(error));
+    } finally {
+      setOverviewLoading(false);
+    }
   };
 
   const loadDirectory = async (role, { reset = false } = {}) => {
@@ -232,13 +241,18 @@ const AdminDashboardPage = () => {
               </div>
             </Card>
 
-            <MetricsGrid items={metrics} />
+            <MetricsGrid items={metrics} loading={overviewLoading} />
 
             <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
               <Card>
                 <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Pending labour verification</h2>
                 <div className="mt-5 space-y-4">
-                  {overview.pendingLabours.length ? (
+                  {overviewLoading ? (
+                    <>
+                      <Skeleton className="h-24 w-full" />
+                      <Skeleton className="h-24 w-full" />
+                    </>
+                  ) : overview.pendingLabours.length ? (
                     overview.pendingLabours.map((labour) => (
                       <div key={labour.id} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
                         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -274,22 +288,30 @@ const AdminDashboardPage = () => {
               <Card>
                 <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Category management</h2>
                 <div className="mt-5 space-y-3">
-                  {overview.categories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-950 dark:text-white">{category.name}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {category.openRequests} open requests
-                        </p>
+                  {overviewLoading ? (
+                    <>
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </>
+                  ) : (
+                    overview.categories.map((category) => (
+                      <div
+                        key={category.id}
+                        className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50"
+                      >
+                        <div>
+                          <p className="font-medium text-slate-950 dark:text-white">{category.name}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {category.openRequests} open requests
+                          </p>
+                        </div>
+                        <Badge tone={category.trending ? 'blue' : 'slate'}>
+                          {category.trending ? 'Trending' : 'Stable'}
+                        </Badge>
                       </div>
-                      <Badge tone={category.trending ? 'blue' : 'slate'}>
-                        {category.trending ? 'Trending' : 'Stable'}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </Card>
             </div>
@@ -303,7 +325,11 @@ const AdminDashboardPage = () => {
                       Review labour details, verify profiles, and keep moderation hidden inside admin.
                     </p>
                   </div>
-                  <Badge tone="blue">{labourDirectory.items.length} loaded</Badge>
+                  {labourDirectory.loading && !labourDirectory.items.length ? (
+                    <Skeleton className="h-7 w-24" />
+                  ) : (
+                    <Badge tone="blue">{labourDirectory.items.length} loaded</Badge>
+                  )}
                 </div>
 
                 <div className="mt-5">
@@ -318,7 +344,12 @@ const AdminDashboardPage = () => {
                 </div>
 
                 <div className="mt-5 space-y-4">
-                  {filteredLabours.length ? (
+                  {labourDirectory.loading && !labourDirectory.items.length ? (
+                    <>
+                      <Skeleton className="h-32 w-full" />
+                      <Skeleton className="h-32 w-full" />
+                    </>
+                  ) : filteredLabours.length ? (
                     filteredLabours.map((labour) => (
                       <div key={labour.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -402,7 +433,11 @@ const AdminDashboardPage = () => {
                       Review client contact details and account status without exposing admin routes publicly.
                     </p>
                   </div>
-                  <Badge tone="blue">{clientDirectory.items.length} loaded</Badge>
+                  {clientDirectory.loading && !clientDirectory.items.length ? (
+                    <Skeleton className="h-7 w-24" />
+                  ) : (
+                    <Badge tone="blue">{clientDirectory.items.length} loaded</Badge>
+                  )}
                 </div>
 
                 <div className="mt-5">
@@ -417,14 +452,18 @@ const AdminDashboardPage = () => {
                 </div>
 
                 <div className="mt-5 space-y-4">
-                  {filteredClients.length ? (
+                  {clientDirectory.loading && !clientDirectory.items.length ? (
+                    <>
+                      <Skeleton className="h-32 w-full" />
+                      <Skeleton className="h-32 w-full" />
+                    </>
+                  ) : filteredClients.length ? (
                     filteredClients.map((client) => (
                       <div key={client.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="font-semibold text-slate-950 dark:text-white">{client.fullName}</h3>
-                              <VerificationBadge verified={client.verified} />
                               <Badge tone={client.accountStatus === 'banned' ? 'rose' : 'slate'}>
                                 {client.accountStatus || 'active'}
                               </Badge>

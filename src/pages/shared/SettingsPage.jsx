@@ -191,7 +191,7 @@ const SettingsPage = () => {
 
   return (
     <AppShell>
-      <PageSEO title="Profile & Settings" description="Manage your WorkLink profile details, preferences, and verification state." />
+      <PageSEO title="Profile & Settings" description="Manage your WorkLink profile details and preferences." />
 
       <section className="section-space">
         <div className="page-shell grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
@@ -204,11 +204,13 @@ const SettingsPage = () => {
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">{roleSummary}</Badge>
-                    <VerificationBadge
-                      verified={userProfile?.verified}
-                      verifiedLabel="Verified profile"
-                      pendingLabel="Not verified"
-                    />
+                    {isLabour ? (
+                      <VerificationBadge
+                        verified={userProfile?.verified}
+                        verifiedLabel="Verified profile"
+                        pendingLabel="Not verified"
+                      />
+                    ) : null}
                   </div>
                   <h1 className="mt-2 text-2xl font-bold text-slate-950">
                     {formValues.fullName.trim() || 'Profile'}

@@ -1,10 +1,9 @@
 import { StatCard } from '../cards/StatCard';
 
-export const MetricsGrid = ({ items }) => (
+export const MetricsGrid = ({ items, loading = false }) => (
   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     {items.map((item) => (
-      <StatCard key={item.label} {...item} />
+      <StatCard key={item.label} {...item} loading={loading} />
     ))}
   </div>
 );
-

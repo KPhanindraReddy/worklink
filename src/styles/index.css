@@ -79,4 +79,17 @@
   .text-gradient {
     @apply bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400 bg-clip-text text-transparent;
   }
+
+  .app-hero-backdrop {
+    background:
+      radial-gradient(circle at top left, rgba(29, 98, 242, 0.18), transparent 30%),
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.2), transparent 26%),
+      linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(245, 248, 255, 0.94) 100%);
+  }
+
+  .app-phone-shell {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 248, 255, 0.96) 100%);
+    box-shadow: 0 32px 80px rgba(15, 23, 42, 0.18);
+  }
 }

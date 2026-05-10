@@ -2,18 +2,14 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import {
   ArrowRight,
-  Bell,
   BriefcaseBusiness,
   CalendarDays,
   Hammer,
-  House,
-  LayoutGrid,
   MapPin,
   MessageSquare,
   Search as SearchIcon,
   ShieldCheck,
   Star,
-  UserRound,
   Wrench
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -27,6 +23,7 @@ import { PageSEO } from '../components/common/PageSEO';
 import { SectionHeading } from '../components/common/SectionHeading';
 import { Skeleton } from '../components/common/Skeleton';
 import { AppShell } from '../components/layout/AppShell';
+import { buildBottomDockItems } from '../components/layout/BottomDockNav';
 import { HeroSearch } from '../components/home/HeroSearch';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -45,19 +42,22 @@ const previewRequests = [
     title: 'Electrical inspection',
     detail: 'Panel check, wiring support, and backup setup',
     meta: '10 min avg response',
-    icon: ShieldCheck
+    icon: ShieldCheck,
+    to: '/search?query=Electrician'
   },
   {
     title: 'Plumbing repair',
     detail: 'Leak fixing, fittings replacement, and motor checks',
     meta: 'Same-day booking',
-    icon: Wrench
+    icon: Wrench,
+    to: '/search?query=Plumbing'
   },
   {
     title: 'Carpentry request',
     detail: 'Wardrobe fitting, shelves, and door alignment',
     meta: 'Chat before booking',
-    icon: Hammer
+    icon: Hammer,
+    to: '/search?query=Carpenter'
   }
 ];
 
@@ -67,50 +67,68 @@ const workflowShortcuts = [
     detail: 'Identity checks and work history',
     icon: BriefcaseBusiness,
     tone: 'from-slate-100 via-white to-slate-200',
-    accent: 'text-slate-700'
+    accent: 'text-slate-700',
+    to: ({ currentUser }) => (currentUser ? '/settings' : '/auth?role=labour&mode=signup')
   },
   {
     title: 'Instant chat',
     detail: 'Talk before you confirm a job',
     icon: MessageSquare,
     tone: 'from-sky-50 via-white to-sky-100',
-    accent: 'text-sky-700'
+    accent: 'text-sky-700',
+    to: ({ currentUser }) => (currentUser ? '/chat' : '/auth?role=client&mode=signup')
   },
   {
     title: 'Booking calendar',
     detail: 'Plan site visits with clear slots',
     icon: CalendarDays,
     tone: 'from-amber-50 via-white to-amber-100',
-    accent: 'text-amber-700'
+    accent: 'text-amber-700',
+    to: ({ currentUser, userProfile }) =>
+      currentUser
+        ? userProfile?.role === 'client'
+          ? '/client/dashboard'
+          : '/search'
+        : '/auth?role=client&mode=signup'
   },
   {
     title: 'Nearby workers',
     detail: 'Discover local labour faster',
     icon: MapPin,
     tone: 'from-rose-50 via-white to-rose-100',
-    accent: 'text-rose-700'
+    accent: 'text-rose-700',
+    to: () => '/search'
   },
   {
     title: 'Ratings and reviews',
     detail: 'See recent client feedback',
     icon: Star,
     tone: 'from-violet-50 via-white to-violet-100',
-    accent: 'text-violet-700'
+    accent: 'text-violet-700',
+    to: () => '/search'
   },
   {
     title: 'OTP job start',
     detail: 'Secure work-start confirmation',
     icon: ShieldCheck,
     tone: 'from-emerald-50 via-white to-emerald-100',
-    accent: 'text-emerald-700'
-  }
-];
+    accent: 'text-emerald-700',
+    to: ({ currentUser, userProfile }) => {
+      if (!currentUser) {
+        return '/auth';
+      }
 
-const mobileDockItems = [
-  { label: 'Home', icon: House, active: true },
-  { label: 'Services', icon: LayoutGrid, active: false },
-  { label: 'Activity', icon: Bell, active: false },
-  { label: 'Account', icon: UserRound, active: false }
+      if (userProfile?.role === 'labour') {
+        return '/labour/dashboard';
+      }
+
+      if (userProfile?.role === 'client') {
+        return '/client/dashboard';
+      }
+
+      return resolvePostAuthPath({ profile: userProfile });
+    }
+  }
 ];
 
 const HomePage = () => {
@@ -138,6 +156,11 @@ const HomePage = () => {
     featuredCategories.length === featuredCategoryNames.length
       ? featuredCategories
       : mockCategories.slice(0, 6);
+  const dockPreviewItems = buildBottomDockItems({ currentUser, userProfile });
+  const workflowShortcutLinks = workflowShortcuts.map((item) => ({
+    ...item,
+    href: item.to({ currentUser, userProfile })
+  }));
 
   useEffect(() => {
     if (currentUser) {
@@ -285,9 +308,10 @@ const HomePage = () => {
                     const Icon = item.icon;
 
                     return (
-                      <div
+                      <Link
                         key={item.title}
-                        className="flex items-start gap-3 rounded-2xl bg-slate-50 px-3 py-3"
+                        to={item.to}
+                        className="flex items-start gap-3 rounded-2xl bg-slate-50 px-3 py-3 transition hover:bg-slate-100"
                       >
                         <div className="grid h-11 w-11 flex-none place-items-center rounded-2xl bg-white text-brand-600 shadow-sm">
                           <Icon size={18} />
@@ -305,7 +329,7 @@ const HomePage = () => {
                             </span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -322,14 +346,15 @@ const HomePage = () => {
                   </Link>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  {workflowShortcuts.map((item) => {
+                  {workflowShortcutLinks.map((item) => {
                     const Icon = item.icon;
 
                     return (
-                      <div
+                      <Link
                         key={item.title}
+                        to={item.href}
                         className={clsx(
-                          'rounded-[28px] border border-slate-200 bg-gradient-to-br p-4 shadow-sm',
+                          'rounded-[28px] border border-slate-200 bg-gradient-to-br p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
                           item.tone
                         )}
                       >
@@ -343,7 +368,7 @@ const HomePage = () => {
                         </div>
                         <p className="mt-4 text-sm font-semibold text-slate-950">{item.title}</p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -366,21 +391,19 @@ const HomePage = () => {
               </div>
 
               <div className="mt-5 grid grid-cols-4 gap-2 rounded-[28px] bg-slate-50 p-2">
-                {mobileDockItems.map((item) => {
+                {dockPreviewItems.map((item) => {
                   const Icon = item.icon;
 
                   return (
-                    <div
+                    <Link
                       key={item.label}
-                      className={clsx(
-                        'rounded-[22px] px-2 py-3 text-center',
-                        item.active && 'bg-white shadow-sm'
-                      )}
+                      to={item.to}
+                      className={clsx('rounded-[22px] px-2 py-3 text-center transition', 'hover:bg-white hover:shadow-sm')}
                     >
                       <div
                         className={clsx(
                           'mx-auto grid h-10 w-10 place-items-center rounded-2xl',
-                          item.active ? 'bg-slate-950 text-white' : 'text-slate-500'
+                          item.label === 'Home' ? 'bg-slate-950 text-white' : 'text-slate-500'
                         )}
                       >
                         <Icon size={18} />
@@ -388,12 +411,12 @@ const HomePage = () => {
                       <p
                         className={clsx(
                           'mt-2 text-xs font-medium',
-                          item.active ? 'text-slate-950' : 'text-slate-500'
+                          item.label === 'Home' ? 'text-slate-950' : 'text-slate-500'
                         )}
                       >
                         {item.label}
                       </p>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -414,12 +437,13 @@ const HomePage = () => {
                 />
 
                 <div className="mt-8 grid gap-3">
-                  {workflowShortcuts.slice(0, 3).map((item) => {
+                  {workflowShortcutLinks.slice(0, 3).map((item) => {
                     const Icon = item.icon;
 
                     return (
-                      <div
+                      <Link
                         key={item.title}
+                        to={item.href}
                         className="flex items-start gap-4 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm"
                       >
                         <div
@@ -435,7 +459,7 @@ const HomePage = () => {
                           <p className="text-base font-semibold text-slate-950">{item.title}</p>
                           <p className="mt-1 text-sm leading-6 text-slate-500">{item.detail}</p>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

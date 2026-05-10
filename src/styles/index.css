@@ -80,6 +80,14 @@
     @apply bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400 bg-clip-text text-transparent;
   }
 
+  .app-shell-content {
+    padding-bottom: calc(7.75rem + env(safe-area-inset-bottom));
+  }
+
+  .app-bottom-dock {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+
   .app-hero-backdrop {
     background:
       radial-gradient(circle at top left, rgba(29, 98, 242, 0.18), transparent 30%),

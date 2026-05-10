@@ -32,6 +32,7 @@ const resolveManualChunk = (id) => {
 export default defineConfig({
   plugins: [react()],
   build: {
+    chunkSizeWarningLimit: 850,
     rollupOptions: {
       output: {
         manualChunks: resolveManualChunk

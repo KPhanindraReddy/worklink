@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Bell, History, House, Search, UserRound } from 'lucide-react';
+import { Bell, History, House, MessageCircle, Search, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -9,20 +9,58 @@ import { matchesRoutePath } from '../../utils/routeMatching';
 export const buildBottomDockItems = ({ currentUser, userProfile }) => {
   const role = userProfile?.role;
   const homeTarget = currentUser ? routeByRole(role) : '/';
-  const servicesItem =
-    role === 'admin'
-      ? {
-          label: 'Alerts',
-          to: '/notifications',
-          icon: Bell,
-          matchers: ['/notifications']
-        }
-      : {
-          label: 'Services',
-          to: currentUser ? '/recent-services' : '/auth',
-          icon: History,
-          matchers: currentUser ? ['/recent-services'] : ['/auth']
-        };
+
+  if (role === 'labour') {
+    return [
+      {
+        label: 'Home',
+        to: homeTarget,
+        icon: House,
+        matchers: [homeTarget]
+      },
+      {
+        label: 'Jobs',
+        to: '/recent-services',
+        icon: History,
+        matchers: ['/recent-services']
+      },
+      {
+        label: 'Chat',
+        to: '/chat',
+        icon: MessageCircle,
+        matchers: ['/chat']
+      },
+      {
+        label: 'Profile',
+        to: '/settings',
+        icon: UserRound,
+        matchers: ['/settings', '/complete-profile*']
+      }
+    ];
+  }
+
+  if (role === 'admin') {
+    return [
+      {
+        label: 'Home',
+        to: homeTarget,
+        icon: House,
+        matchers: [homeTarget]
+      },
+      {
+        label: 'Alerts',
+        to: '/notifications',
+        icon: Bell,
+        matchers: ['/notifications']
+      },
+      {
+        label: 'Profile',
+        to: '/settings',
+        icon: UserRound,
+        matchers: ['/settings', '/complete-profile*']
+      }
+    ];
+  }
 
   return [
     {
@@ -41,9 +79,14 @@ export const buildBottomDockItems = ({ currentUser, userProfile }) => {
         (pathname) => pathname.startsWith('/labour/') && pathname !== '/labour/dashboard'
       ]
     },
-    servicesItem,
     {
-      label: role === 'admin' ? 'Admin' : 'Profile',
+      label: 'Services',
+      to: currentUser ? '/recent-services' : '/auth',
+      icon: History,
+      matchers: currentUser ? ['/recent-services'] : ['/auth']
+    },
+    {
+      label: 'Profile',
       to: currentUser ? '/settings' : '/auth',
       icon: UserRound,
       matchers: currentUser ? ['/settings', '/complete-profile*'] : ['/auth']

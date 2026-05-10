@@ -1,6 +1,7 @@
 import {
   Bell,
   Heart,
+  History,
   LayoutDashboard,
   MessageCircle,
   Search,
@@ -29,6 +30,7 @@ import { getLocationLabel } from '../../utils/location';
 const sidebarItems = [
   { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/search', label: 'Search Service', icon: Search },
+  { to: '/recent-services', label: 'Recent services', icon: History },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/notifications', label: 'Alerts', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings }

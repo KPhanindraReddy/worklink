@@ -11,14 +11,26 @@ import {
   where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
-import { mockAdminAnalytics, mockCategories, mockLabours } from '../data/mockData';
+import { workCategories } from '../utils/constants';
+
+const fallbackCategories = workCategories.map((category, index) => ({
+  id: `category-${index + 1}`,
+  name: category,
+  openRequests: 0,
+  trending: false
+}));
 
 export const getAdminOverview = async () => {
   if (!isFirebaseConfigured || !db) {
     return {
-      analytics: mockAdminAnalytics,
-      categories: mockCategories,
-      pendingLabours: mockLabours.filter((labour) => !labour.verified)
+      analytics: {
+        userCount: 0,
+        labourCount: 0,
+        activeBookings: 0,
+        pendingVerifications: 0
+      },
+      categories: fallbackCategories,
+      pendingLabours: []
     };
   }
 
@@ -44,7 +56,7 @@ export const getAdminOverview = async () => {
       activeBookings: bookingsCountSnapshot.data().count,
       pendingVerifications: pendingCountSnapshot.data().count
     },
-    categories: mockCategories,
+    categories: fallbackCategories,
     pendingLabours
   };
 };

@@ -19,6 +19,7 @@ import { LabourCard } from '../components/cards/LabourCard';
 import { ServiceCategoryCard } from '../components/cards/ServiceCategoryCard';
 import { TestimonialCard } from '../components/cards/TestimonialCard';
 import { Button } from '../components/common/Button';
+import { EmptyState } from '../components/common/EmptyState';
 import { PageSEO } from '../components/common/PageSEO';
 import { SectionHeading } from '../components/common/SectionHeading';
 import { Skeleton } from '../components/common/Skeleton';
@@ -29,7 +30,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   heroStats,
   howItWorks,
-  mockCategories,
+  serviceCategories,
   testimonials
 } from '../data/mockData';
 import { fetchFeaturedLabours } from '../services/labourService';
@@ -150,12 +151,12 @@ const HomePage = () => {
     'Cleaner'
   ];
   const featuredCategories = featuredCategoryNames
-    .map((name) => mockCategories.find((category) => category.name === name))
+    .map((name) => serviceCategories.find((category) => category.name === name))
     .filter(Boolean);
   const homepageCategories =
     featuredCategories.length === featuredCategoryNames.length
       ? featuredCategories
-      : mockCategories.slice(0, 6);
+      : serviceCategories.slice(0, 6);
   const dockPreviewItems = buildBottomDockItems({ currentUser, userProfile });
   const workflowShortcutLinks = workflowShortcuts.map((item) => ({
     ...item,
@@ -530,11 +531,20 @@ const HomePage = () => {
             title="Verified workers clients keep hiring again"
             description="Rich profiles, transparent pricing, multilingual communication, and work history make shortlisting much easier."
           />
-          <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {featuredLabours.map((labour) => (
-              <LabourCard key={labour.id} labour={labour} />
-            ))}
-          </div>
+          {featuredLabours.length ? (
+            <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {featuredLabours.map((labour) => (
+                <LabourCard key={labour.id} labour={labour} />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-10">
+              <EmptyState
+                title="No featured labour profiles yet"
+                description="Featured labour will appear here after live profiles are added and verified."
+              />
+            </div>
+          )}
         </div>
       </section>
 

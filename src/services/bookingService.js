@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
   query,
   runTransaction,
@@ -10,7 +9,6 @@ import {
   where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
-import { mockBookings } from '../data/mockData';
 import { parseDateValue } from '../utils/formatters';
 
 const debugBookingService = (message, payload = {}) => {
@@ -34,23 +32,6 @@ const buildUserBookingsQuery = (userId, role) => {
   );
 };
 
-export const getBookingsForUser = async ({ userId, role }) => {
-  if (!userId || !role) {
-    return [];
-  }
-
-  if (!isFirebaseConfigured || !db) {
-    return mockBookings.filter(
-      (item) => item[role === 'labour' ? 'labourId' : 'clientId'] === userId
-    );
-  }
-
-  const bookingQuery = buildUserBookingsQuery(userId, role);
-
-  const snapshot = await getDocs(bookingQuery);
-  return sortBookingsByAppointmentDesc(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
-};
-
 export const subscribeBookingsForUser = ({ userId, role }, onNext, onError) => {
   if (!userId || !role) {
     onNext([]);
@@ -58,13 +39,7 @@ export const subscribeBookingsForUser = ({ userId, role }, onNext, onError) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    onNext(
-      sortBookingsByAppointmentDesc(
-        mockBookings.filter(
-          (item) => item[role === 'labour' ? 'labourId' : 'clientId'] === userId
-        )
-      )
-    );
+    onNext([]);
     return () => {};
   }
 

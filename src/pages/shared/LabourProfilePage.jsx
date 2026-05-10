@@ -1,7 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { CalendarDays, MapPin, Phone, ShieldCheck, Star } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { LabourCard } from '../../components/cards/LabourCard';
+import { useEffect, useState } from 'react';
 import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
@@ -11,7 +10,6 @@ import { PageSEO } from '../../components/common/PageSEO';
 import { SectionHeading } from '../../components/common/SectionHeading';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
-import { mockLabours } from '../../data/mockData';
 import { getLabourById } from '../../services/labourService';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -25,15 +23,7 @@ const LabourProfilePage = () => {
     getLabourById(labourId).then(setLabour);
   }, [labourId]);
 
-  const relatedLabours = useMemo(
-    () =>
-      mockLabours
-        .filter((item) => item.id !== labourId && item.category === labour?.category)
-        .slice(0, 2),
-    [labour, labourId]
-  );
-
-  const canRevealContact = Boolean(userProfile?.verified && labour?.verified);
+  const canRevealContact = Boolean(userProfile?.role === 'client' && userProfile?.verified && labour?.verified);
   const isClient = userProfile?.role === 'client';
 
   if (!labour) {
@@ -109,9 +99,19 @@ const LabourProfilePage = () => {
                       Sign up as client to book
                     </Button>
                   )}
-                  <Button as={Link} to="/chat" variant="outline">
-                    Chat now
-                  </Button>
+                  {isClient ? (
+                    <Button as={Link} to={`/chat?target=${labour.id}`} variant="outline">
+                      Chat now
+                    </Button>
+                  ) : currentUser ? (
+                    <Button type="button" variant="outline" disabled>
+                      Client account required
+                    </Button>
+                  ) : (
+                    <Button as={Link} to="/auth?role=client&mode=login" variant="outline">
+                      Login as client
+                    </Button>
+                  )}
                   <Button
                     as="a"
                     href={canRevealContact ? `tel:${labour.phoneNumber}` : undefined}
@@ -225,27 +225,6 @@ const LabourProfilePage = () => {
           </div>
         </div>
       </section>
-
-      {relatedLabours.length ? (
-        <section className="section-space">
-          <div className="page-shell">
-            <SectionHeading
-              eyebrow="More options"
-              title={`More ${labour.category} professionals`}
-              description="Compare similar workers before you book."
-            />
-            <div className="mt-8 grid gap-5 lg:grid-cols-2">
-              {relatedLabours.map((item) => (
-                <LabourCard
-                  key={item.id}
-                  labour={item}
-                  onQuickBook={isClient ? setSelectedQuickBookLabour : undefined}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       <QuickBookingDialog
         isOpen={Boolean(selectedQuickBookLabour)}

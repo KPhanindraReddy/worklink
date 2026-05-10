@@ -12,7 +12,6 @@ import {
   where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
-import { mockLabours } from '../data/mockData';
 import {
   labourMatchesCategory,
   labourMatchesServiceQuery,
@@ -162,7 +161,7 @@ const resolveCategoryFromSkill = (skill) => {
 
 export const fetchFeaturedLabours = async (count = 6) => {
   if (!isFirebaseConfigured || !db) {
-    return mockLabours.slice(0, count);
+    return [];
   }
 
   const labourQuery = query(
@@ -190,7 +189,7 @@ export const searchLabours = async (filters = {}, origin) => {
 
   const requestPromise = (async () => {
     if (!isFirebaseConfigured || !db) {
-      return recommendLabours(mockLabours, filters, origin).slice(0, SEARCH_RESULT_LIMIT);
+      return [];
     }
 
     const items = await fetchLabourCandidates(filters, resolvedCategory);
@@ -240,7 +239,7 @@ export const getLabourById = async (labourId) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    return mockLabours.find((labour) => labour.id === labourId) ?? null;
+    return null;
   }
 
   const snapshot = await getDoc(doc(db, 'labours', labourId));
@@ -254,7 +253,7 @@ export const subscribeLabourById = (labourId, onNext, onError) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    onNext(mockLabours.find((labour) => labour.id === labourId) ?? null);
+    onNext(null);
     return () => {};
   }
 

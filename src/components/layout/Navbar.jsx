@@ -67,17 +67,21 @@ export const Navbar = () => {
         ...(userProfile?.role === 'admin'
           ? [{ to: '/admin', label: 'Overview', icon: LayoutDashboard, matchers: ['/admin'] }]
           : []),
-        {
-          to: '/search',
-          label: 'Search Service',
-          icon: Search,
-          matchers: [
-            '/search',
-            '/booking*',
-            (nextPathname) =>
-              nextPathname.startsWith('/labour/') && nextPathname !== '/labour/dashboard'
-          ]
-        },
+        ...(userProfile?.role === 'client'
+          ? [
+              {
+                to: '/search',
+                label: 'Search Service',
+                icon: Search,
+                matchers: [
+                  '/search',
+                  '/booking*',
+                  (nextPathname) =>
+                    nextPathname.startsWith('/labour/') && nextPathname !== '/labour/dashboard'
+                ]
+              }
+            ]
+          : []),
         { to: '/about', label: 'About', icon: CircleHelp, matchers: ['/about'] }
       ]
     : [

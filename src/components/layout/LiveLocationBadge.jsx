@@ -41,17 +41,17 @@ export const LiveLocationBadge = ({ currentUser, userProfile, compact = false, c
         : null,
     [geolocation.latitude, geolocation.longitude]
   );
-  const fallbackLocation = getLocationLabel(userProfile, {
+  const areaLabel = getLocationLabel(userProfile, {
     preferCurrent: role === 'labour',
-    fallback: 'Location unavailable'
+    fallback: ''
   });
-  const locationLabel = liveCoordinates ? formatCoordinates(liveCoordinates) : fallbackLocation;
+  const locationLabel = areaLabel || (liveCoordinates ? formatCoordinates(liveCoordinates) : 'Location unavailable');
   const caption = geolocation.loading
     ? `Finding ${getRoleLabel(role).toLowerCase()} location`
     : liveCoordinates
-      ? `${getRoleLabel(role)} live location`
+      ? `${getRoleLabel(role)} live location active`
       : `${getRoleLabel(role)} saved location`;
-  const mapsUrl = buildMapsUrl(liveCoordinates || userProfile?.coordinates, fallbackLocation);
+  const mapsUrl = buildMapsUrl(liveCoordinates || userProfile?.coordinates, areaLabel);
   const Container = mapsUrl ? 'a' : 'div';
 
   return (

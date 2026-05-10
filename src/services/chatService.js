@@ -13,7 +13,6 @@ import {
   where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
-import { mockConversations } from '../data/mockData';
 
 export const buildConversationId = (userA, userB) => [userA, userB].sort().join('__');
 
@@ -24,24 +23,6 @@ const normalizeParticipantProfile = (profile = {}) => ({
   whatsAppLink: profile.whatsAppLink || ''
 });
 
-export const getConversations = async (userId) => {
-  if (!userId) {
-    return [];
-  }
-
-  if (!isFirebaseConfigured || !db) {
-    return mockConversations.filter((conversation) => conversation.participantIds.includes(userId));
-  }
-
-  const conversationQuery = query(
-    collection(db, 'conversations'),
-    where('participantIds', 'array-contains', userId),
-    orderBy('lastMessageAt', 'desc')
-  );
-  const snapshot = await getDocs(conversationQuery);
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-};
-
 export const subscribeConversations = (userId, onNext, onError) => {
   if (!userId) {
     onNext([]);
@@ -49,7 +30,7 @@ export const subscribeConversations = (userId, onNext, onError) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    onNext(mockConversations.filter((conversation) => conversation.participantIds.includes(userId)));
+    onNext([]);
     return () => {};
   }
 
@@ -74,9 +55,7 @@ export const getMessages = async (conversationId) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    return (
-      mockConversations.find((conversation) => conversation.id === conversationId)?.messages ?? []
-    );
+    return [];
   }
 
   const messagesQuery = query(
@@ -94,7 +73,7 @@ export const subscribeMessages = (conversationId, onNext, onError) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    onNext(mockConversations.find((conversation) => conversation.id === conversationId)?.messages ?? []);
+    onNext([]);
     return () => {};
   }
 
@@ -118,7 +97,7 @@ export const ensureConversation = async ({ currentUserId, otherUserId, metadata 
   }
 
   if (!isFirebaseConfigured || !db) {
-    return buildConversationId(currentUserId, otherUserId);
+    throw new Error('Firebase must be configured before starting chats.');
   }
 
   const conversationId = buildConversationId(currentUserId, otherUserId);
@@ -180,7 +159,7 @@ export const sendMessage = async (conversationId, payload) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    return;
+    throw new Error('Firebase must be configured before sending chat messages.');
   }
 
   await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
@@ -192,15 +171,5 @@ export const sendMessage = async (conversationId, payload) => {
     lastMessage: payload.text || 'Image',
     lastMessageAt: serverTimestamp(),
     [`readBy.${payload.senderId}`]: true
-  });
-};
-
-export const updateTypingState = async (conversationId, userId, isTyping) => {
-  if (!isFirebaseConfigured || !db) {
-    return;
-  }
-
-  await updateDoc(doc(db, 'conversations', conversationId), {
-    [`typing.${userId}`]: isTyping
   });
 };

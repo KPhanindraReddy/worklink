@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Navigation,
   Phone,
-  Search,
   Settings,
   Star,
   WalletCards
@@ -37,11 +36,11 @@ import { subscribeLabourById, updateAvailability } from '../../services/labourSe
 import { createNotification } from '../../services/notificationService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
-import { getLocationLabel } from '../../utils/location';
+import { formatCoordinates, getLocationLabel } from '../../utils/location';
 
 const sidebarItems = [
   { to: '/labour/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { to: '/search', label: 'Search Service', icon: Search },
+  { to: '/recent-services', label: 'Jobs', icon: MapPinned },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/notifications', label: 'Alerts', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings }
@@ -101,6 +100,7 @@ const LabourDashboardPage = () => {
       userProfile?.location,
       userProfile?.phoneNumber,
       userProfile?.profilePhoto,
+      userProfile?.coordinates,
       userProfile?.rating,
       userProfile?.reviewsCount
     ]
@@ -110,6 +110,22 @@ const LabourDashboardPage = () => {
     () => getLocationLabel(dashboardProfile, { preferCurrent: true, fallback: 'Location not set' }),
     [dashboardProfile]
   );
+  const getBookingDestinationDetails = (booking) => {
+    const areaLabel = String(booking?.location ?? '').trim();
+    const coordinateLabel = formatCoordinates(booking?.coordinates);
+
+    if (areaLabel && coordinateLabel) {
+      return {
+        primary: areaLabel,
+        secondary: coordinateLabel
+      };
+    }
+
+    return {
+      primary: areaLabel || coordinateLabel || 'Location unavailable',
+      secondary: ''
+    };
+  };
   const isProfileMissing = !dashboardLoading && !profile;
   const activeWorkBookings = useMemo(
     () => bookings.filter((booking) => ['accepted', 'in_progress'].includes(booking.status)),
@@ -560,8 +576,11 @@ const LabourDashboardPage = () => {
                 </div>
 
                 <div className="mt-5 grid gap-4 xl:grid-cols-2">
-                  {activeWorkBookings.map((booking) => (
-                    <div key={booking.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/50">
+                  {activeWorkBookings.map((booking) => {
+                    const destinationDetails = getBookingDestinationDetails(booking);
+
+                    return (
+                      <div key={booking.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/50">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <h3 className="font-semibold text-slate-950 dark:text-white">{booking.serviceType}</h3>
@@ -598,10 +617,13 @@ const LabourDashboardPage = () => {
                           <div>
                             <p className="text-sm font-semibold text-slate-950">Client destination</p>
                             <p className="mt-1 text-xs font-medium text-slate-600">
-                              {booking.coordinates?.latitude != null
-                                ? `${booking.coordinates.latitude.toFixed(5)}, ${booking.coordinates.longitude.toFixed(5)}`
-                                : booking.location}
+                              {destinationDetails.primary}
                             </p>
+                            {destinationDetails.secondary ? (
+                              <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                GPS: {destinationDetails.secondary}
+                              </p>
+                            ) : null}
                           </div>
                           <Button
                             as="a"
@@ -657,8 +679,9 @@ const LabourDashboardPage = () => {
                           </div>
                         </div>
                       )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </Card>
             ) : null}

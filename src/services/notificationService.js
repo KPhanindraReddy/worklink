@@ -1,14 +1,12 @@
 import {
   addDoc,
   collection,
-  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
   where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
-import { mockNotifications } from '../data/mockData';
 import { parseDateValue } from '../utils/formatters';
 
 const debugNotifications = (message, payload = {}) => {
@@ -23,23 +21,6 @@ const sortNotificationsByCreatedAtDesc = (items) =>
     return dateB - dateA;
   });
 
-export const getNotifications = async (userId) => {
-  if (!userId) {
-    return [];
-  }
-
-  if (!isFirebaseConfigured || !db) {
-    return sortNotificationsByCreatedAtDesc(mockNotifications);
-  }
-
-  const notificationsQuery = query(
-    collection(db, 'notifications'),
-    where('userId', '==', userId)
-  );
-  const snapshot = await getDocs(notificationsQuery);
-  return sortNotificationsByCreatedAtDesc(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
-};
-
 export const subscribeNotifications = (userId, onNext, onError) => {
   if (!userId) {
     onNext([]);
@@ -47,7 +28,7 @@ export const subscribeNotifications = (userId, onNext, onError) => {
   }
 
   if (!isFirebaseConfigured || !db) {
-    onNext(sortNotificationsByCreatedAtDesc(mockNotifications));
+    onNext([]);
     return () => {};
   }
 

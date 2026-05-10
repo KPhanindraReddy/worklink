@@ -65,8 +65,8 @@ export const BottomDockNav = () => {
 
   return (
     <div className="app-bottom-dock pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 md:px-6">
-      <nav className="pointer-events-auto w-full max-w-[29rem] rounded-[32px] border border-white/80 bg-white/92 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-2xl md:max-w-[36rem]">
-        <div className="grid grid-cols-4 gap-2">
+      <nav className="pointer-events-auto w-full max-w-[24rem] rounded-[28px] border border-white/80 bg-white/94 p-1.5 shadow-[0_16px_42px_rgba(15,23,42,0.16)] backdrop-blur-2xl md:max-w-[31rem]">
+        <div className="grid grid-cols-4 gap-1.5">
           {items.map((item) => {
             const Icon = item.icon;
             const isActive = matchesPath(pathname, item.matchers);
@@ -77,22 +77,24 @@ export const BottomDockNav = () => {
                 to={item.to}
                 aria-current={isActive ? 'page' : undefined}
                 className={clsx(
-                  'rounded-[24px] px-2 py-3 text-center transition duration-200 md:px-4',
-                  isActive ? 'bg-slate-100 shadow-sm' : 'hover:bg-slate-50'
+                  'rounded-[22px] border px-1.5 py-2 text-center transition duration-200 md:px-2',
+                  isActive
+                    ? 'border-slate-950 bg-slate-950 shadow-[0_12px_28px_rgba(15,23,42,0.24)]'
+                    : 'border-transparent bg-white text-slate-500 hover:border-slate-200 hover:bg-slate-50'
                 )}
               >
                 <span
                   className={clsx(
-                    'mx-auto grid h-10 w-10 place-items-center rounded-2xl transition',
-                    isActive ? 'bg-slate-950 text-white' : 'text-slate-500'
+                    'mx-auto grid h-8 w-8 place-items-center rounded-xl transition md:h-9 md:w-9',
+                    isActive ? 'bg-white/12 text-white' : 'bg-slate-100 text-slate-500'
                   )}
                 >
-                  <Icon size={18} />
+                  <Icon size={16} />
                 </span>
                 <span
                   className={clsx(
-                    'mt-2 block text-xs font-medium md:text-sm',
-                    isActive ? 'text-slate-950' : 'text-slate-500'
+                    'mt-1.5 block text-[11px] font-medium md:text-xs',
+                    isActive ? 'text-white' : 'text-slate-500'
                   )}
                 >
                   {item.label}

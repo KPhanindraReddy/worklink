@@ -73,6 +73,14 @@ const clearRedirectContext = () => {
     console.warn('WorkLink OAuth redirect context could not be cleared:', error);
   }
 };
+const getCurrentAppPath = () => {
+  if (typeof window === 'undefined') {
+    return '/auth';
+  }
+
+  const { hash, pathname, search } = window.location;
+  return `${pathname}${search}${hash}`;
+};
 const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink User')}&background=1d4ed8&color=ffffff`;
 const getCreatedAtValue = (user) =>
@@ -97,7 +105,10 @@ const resolveAccountRole = (user, formValues = {}, existingProfile = null) => {
 };
 
 const startRedirectAuthentication = async (provider, redirectContext) => {
-  storeRedirectContext(redirectContext);
+  storeRedirectContext({
+    ...redirectContext,
+    resumePath: redirectContext.resumePath || getCurrentAppPath()
+  });
   await signInWithRedirect(auth, provider);
   return null;
 };
@@ -218,6 +229,8 @@ export const beginAppleLogin = async (context = {}) => {
     provider: 'apple.com'
   });
 };
+
+export const getPendingRedirectContext = () => readRedirectContext();
 
 export const consumeRedirectAuthResult = async () => {
   if (!auth) {

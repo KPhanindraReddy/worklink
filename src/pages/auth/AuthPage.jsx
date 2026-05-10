@@ -47,6 +47,14 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const getStoredFromLocation = (from) =>
+  from?.pathname
+    ? {
+        pathname: from.pathname,
+        search: from.search ?? ''
+      }
+    : null;
+
 const AuthPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -101,8 +109,12 @@ const AuthPage = () => {
     }
   }, [queryMode, queryRole]);
 
-  const redirectAfterAuth = async (profile, fallbackRole = role) => {
-    const from = location.state?.from;
+  const redirectAfterAuth = async (
+    profile,
+    fallbackRole = role,
+    redirectedFrom = location.state?.from
+  ) => {
+    const from = redirectedFrom;
 
     if (
       isProfileComplete(profile) &&
@@ -187,7 +199,7 @@ const AuthPage = () => {
               ? `${providerName} login complete.`
               : `${providerName} login complete. Finish your profile to continue.`
         );
-        await redirectAfterAuth(profile, fallbackRole);
+        await redirectAfterAuth(profile, fallbackRole, redirectResult.context?.from);
       } catch (error) {
         if (isMounted) {
           toast.error(getFirebaseErrorMessage(error));
@@ -254,23 +266,26 @@ const AuthPage = () => {
     updateAuthUrl(role, nextMode);
   };
 
-  const requireRoleSelection = () => {
-    if (mode === 'login') {
+  const requireRoleSelection = ({
+    allowWithoutRole = false,
+    message = 'Choose Client or Labour before continuing.'
+  } = {}) => {
+    if (role || allowWithoutRole) {
       return true;
     }
 
-    if (role) {
-      return true;
-    }
-
-    toast.error('Choose Client or Labour before continuing.');
+    toast.error(message);
     return false;
   };
 
   const handleEmailAuth = async (event) => {
     event.preventDefault();
 
-    if (!requireRoleSelection()) {
+    if (
+      !requireRoleSelection({
+        allowWithoutRole: mode === 'login'
+      })
+    ) {
       return;
     }
 
@@ -317,14 +332,22 @@ const AuthPage = () => {
   };
 
   const handleGoogleAuth = async () => {
-    if (!requireRoleSelection()) {
+    if (
+      !requireRoleSelection({
+        message: 'Choose Client or Labour before continuing with Google.'
+      })
+    ) {
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const user = await loginWithGoogle({ mode, role });
+      const user = await loginWithGoogle({
+        mode,
+        role,
+        from: getStoredFromLocation(location.state?.from)
+      });
 
       if (!user) {
         return;
@@ -351,14 +374,22 @@ const AuthPage = () => {
   };
 
   const handleAppleAuth = async () => {
-    if (!requireRoleSelection()) {
+    if (
+      !requireRoleSelection({
+        message: 'Choose Client or Labour before continuing with Apple.'
+      })
+    ) {
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const user = await loginWithApple({ mode, role });
+      const user = await loginWithApple({
+        mode,
+        role,
+        from: getStoredFromLocation(location.state?.from)
+      });
 
       if (!user) {
         return;
@@ -385,7 +416,11 @@ const AuthPage = () => {
   };
 
   const handleSendOtp = async () => {
-    if (!requireRoleSelection()) {
+    if (
+      !requireRoleSelection({
+        message: 'Choose Client or Labour before continuing with phone OTP.'
+      })
+    ) {
       return;
     }
 
@@ -412,7 +447,11 @@ const AuthPage = () => {
       return;
     }
 
-    if (!requireRoleSelection()) {
+    if (
+      !requireRoleSelection({
+        message: 'Choose Client or Labour before continuing with phone OTP.'
+      })
+    ) {
       return;
     }
 

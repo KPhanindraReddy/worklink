@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { OAuthRedirectBridge } from './components/layout/OAuthRedirectBridge';
 import { Skeleton } from './components/common/Skeleton';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -28,6 +29,7 @@ const RouteFallback = () => (
 
 const App = () => (
   <Suspense fallback={<RouteFallback />}>
+    <OAuthRedirectBridge />
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/auth" element={<AuthPage />} />

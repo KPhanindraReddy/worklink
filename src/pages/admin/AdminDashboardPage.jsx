@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Bell, LayoutDashboard, Settings } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -11,9 +12,9 @@ import { getAdminOverview, verifyLabourAccount, banUser } from '../../services/a
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const sidebarItems = [
-  { to: '/admin', label: 'Overview' },
-  { to: '/notifications', label: 'Notifications' },
-  { to: '/settings', label: 'Settings' }
+  { to: '/admin', label: 'Overview', icon: LayoutDashboard },
+  { to: '/notifications', label: 'Alerts', icon: Bell },
+  { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
 const AdminDashboardPage = () => {
@@ -77,15 +78,13 @@ const AdminDashboardPage = () => {
           <div className="space-y-6">
             <Card className="overflow-hidden rounded-[36px]">
               <div className="p-8">
-                <p className="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">
-                  Admin control center
-                </p>
-                <h1 className="mt-4 font-display text-4xl font-bold text-slate-950">
-                  Marketplace moderation, verification, and analytics
+                <div className="flex flex-wrap gap-2">
+                  <Badge tone="blue">Admin</Badge>
+                  <Badge tone="slate">Operations</Badge>
+                </div>
+                <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
+                  Marketplace overview
                 </h1>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
-                  Review pending labour accounts, manage categories, monitor booking activity, and keep the trust layer healthy across the platform.
-                </p>
               </div>
             </Card>
 

@@ -138,19 +138,13 @@ const SettingsPage = () => {
                   {profileInitial}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">
-                    Profile workspace
-                  </p>
-                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Profile and settings</h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                    Update your role-specific details here. Labour accounts can manage work info and availability, while client accounts can keep booking details current.
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">{roleSummary}</Badge>
                     <Badge tone={userProfile?.verified ? 'emerald' : 'amber'}>
                       {userProfile?.verified ? 'Verified profile' : 'Verification pending'}
                     </Badge>
                   </div>
+                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Profile and settings</h1>
                 </div>
               </div>
             </Card>
@@ -159,9 +153,6 @@ const SettingsPage = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-950">Profile details</h2>
-                  <p className="mt-2 text-sm text-slate-600">
-                    These details appear differently for labour and client accounts across search, booking, and dashboard screens.
-                  </p>
                 </div>
                 <Button onClick={saveProfile} disabled={savingProfile || !canSaveProfile}>
                   <CheckCircle2 size={16} />
@@ -292,9 +283,7 @@ const SettingsPage = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-slate-950">Verification status</h2>
-                  <p className="text-sm text-slate-600">
-                    Verified profiles unlock stronger trust signals and direct calling.
-                  </p>
+                  <p className="text-sm text-slate-600">Trust and account status.</p>
                 </div>
               </div>
               <div className="mt-6 rounded-3xl bg-slate-50 p-5 text-sm text-slate-700">
@@ -312,9 +301,7 @@ const SettingsPage = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-slate-950">Contact preferences</h2>
-                  <p className="text-sm text-slate-600">
-                    Control reminders and booking communication alerts.
-                  </p>
+                  <p className="text-sm text-slate-600">Manage alerts.</p>
                 </div>
               </div>
               <div className="mt-5 space-y-4 text-sm text-slate-600">
@@ -343,9 +330,7 @@ const SettingsPage = () => {
 
             <Card>
               <h2 className="text-xl font-semibold text-slate-950">Session</h2>
-              <p className="mt-3 text-sm text-slate-600">
-                Log out safely after you finish profile updates or booking work.
-              </p>
+              <p className="mt-3 text-sm text-slate-600">Log out from your account.</p>
               <div className="mt-6">
                 <Button variant="outline" onClick={logout}>
                   Logout

@@ -1,4 +1,12 @@
-import { Heart, Search, Sparkles } from 'lucide-react';
+import {
+  Bell,
+  Heart,
+  LayoutDashboard,
+  MessageCircle,
+  Search,
+  Settings,
+  Sparkles
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -18,11 +26,11 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const sidebarItems = [
-  { to: '/client/dashboard', label: 'Overview' },
-  { to: '/search', label: 'Search labour' },
-  { to: '/chat', label: 'Chat' },
-  { to: '/notifications', label: 'Notifications' },
-  { to: '/settings', label: 'Settings' }
+  { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/search', label: 'Search', icon: Search },
+  { to: '/chat', label: 'Chat', icon: MessageCircle },
+  { to: '/notifications', label: 'Alerts', icon: Bell },
+  { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
 const getBookingTone = (status) => {
@@ -117,21 +125,25 @@ const ClientDashboardPage = () => {
 
           <div className="space-y-6">
             <Card className="overflow-hidden rounded-[36px]">
-              <div className="grid gap-6 p-8 lg:grid-cols-[1fr_auto]">
+              <div className="grid gap-6 p-6 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">
-                    Client workspace
-                  </p>
-                  <h1 className="mt-4 font-display text-4xl font-bold text-slate-950">
-                    Welcome, {userProfile?.fullName ?? 'Client'}
+                  <div className="flex flex-wrap gap-2">
+                    <Badge tone="blue">Client</Badge>
+                    {userProfile?.location ? <Badge tone="slate">{userProfile.location}</Badge> : null}
+                  </div>
+                  <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
+                    Hello, {userProfile?.fullName ?? 'Client'}
                   </h1>
-                  <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-                    Search nearby labour, send direct requests, and track acceptance, OTP, and work progress in one place.
-                  </p>
                 </div>
-                <div className="rounded-[28px] bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Primary location</p>
-                  <p className="mt-2 text-xl font-semibold text-slate-950">{userProfile?.location ?? 'Not set yet'}</p>
+                <div className="flex flex-wrap gap-3">
+                  <Button as={Link} to="/search" size="sm">
+                    <Search size={16} />
+                    Find labour
+                  </Button>
+                  <Button as={Link} to="/chat" variant="outline" size="sm">
+                    <MessageCircle size={16} />
+                    Chat
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -142,24 +154,35 @@ const ClientDashboardPage = () => {
               <Card>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Search labour</h2>
-                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Enter the service you need and see available labour nearby.
-                    </p>
+                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Quick actions</h2>
                   </div>
-                  <Badge tone="blue">AI-assisted matching</Badge>
+                  <Badge tone="blue">Fast access</Badge>
                 </div>
-                <div className="mt-6 rounded-3xl bg-brand-50 p-5 text-sm leading-7 text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
-                  Search now shows matching available labour directly, so clients do not need a separate request page.
-                </div>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Button as={Link} to="/search">
-                    <Search size={16} />
-                    Search labour
-                  </Button>
-                  <Button as={Link} to="/chat" variant="outline">
-                    Open chat
-                  </Button>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <Link
+                    to="/search"
+                    className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
+                  >
+                    <Search size={18} className="text-brand-600" />
+                    <p className="mt-3 font-semibold text-slate-950">Search</p>
+                    <p className="mt-1 text-sm text-slate-500">Browse available labour</p>
+                  </Link>
+                  <Link
+                    to="/chat"
+                    className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
+                  >
+                    <MessageCircle size={18} className="text-brand-600" />
+                    <p className="mt-3 font-semibold text-slate-950">Chat</p>
+                    <p className="mt-1 text-sm text-slate-500">Open conversations</p>
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
+                  >
+                    <Bell size={18} className="text-brand-600" />
+                    <p className="mt-3 font-semibold text-slate-950">Alerts</p>
+                    <p className="mt-1 text-sm text-slate-500">View latest updates</p>
+                  </Link>
                 </div>
               </Card>
 
@@ -238,7 +261,7 @@ const ClientDashboardPage = () => {
               <Card>
                 <div className="flex items-center gap-2">
                   <Heart size={18} className="text-rose-500" />
-                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Favourite-ready shortlist</h2>
+                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Shortlist</h2>
                 </div>
                 <div className="mt-5 space-y-4">
                   {featuredLabours.slice(0, 3).map((labour) => (

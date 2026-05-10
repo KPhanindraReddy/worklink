@@ -1,119 +1,180 @@
-import { Link, NavLink } from 'react-router-dom';
-import { BriefcaseBusiness, Menu, X } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import {
+  Bell,
+  BriefcaseBusiness,
+  CircleHelp,
+  LayoutDashboard,
+  Menu,
+  MessageCircle,
+  Search,
+  X
+} from 'lucide-react';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 import { Button } from '../common/Button';
 import { useAuth } from '../../context/AuthContext';
 import { routeByRole } from '../../utils/authFlow';
-import { LanguageSwitcher } from './LanguageSwitcher';
 
 const linkClassName = ({ isActive }) =>
   clsx(
-    'rounded-full px-3 py-2 text-sm font-medium transition',
+    'inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition',
     isActive
       ? 'bg-brand-50 text-brand-700'
-      : 'text-slate-600 hover:text-slate-950'
+      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
   );
 
 const getProfileInitial = (userProfile, currentUser) =>
   (userProfile?.fullName || currentUser?.displayName || 'U').trim().charAt(0).toUpperCase();
 
+const isPathActive = (pathname, matchers) =>
+  matchers.some((matcher) => {
+    if (matcher.endsWith('*')) {
+      return pathname.startsWith(matcher.slice(0, -1));
+    }
+
+    return pathname === matcher;
+  });
+
+const actionButtonClass = (isActive) =>
+  clsx(
+    'grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-700',
+    isActive && 'border-brand-200 bg-brand-50 text-brand-700'
+  );
+
 export const Navbar = () => {
-  const { t } = useTranslation();
-  const { currentUser, userProfile, logout } = useAuth();
+  const { pathname } = useLocation();
+  const { currentUser, userProfile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const primaryPath = currentUser ? routeByRole(userProfile?.role) : '/';
   const profileInitial = getProfileInitial(userProfile, currentUser);
 
-  const baseLinks = currentUser ? [] : [{ to: '/', label: t('nav.home') }];
+  const baseLinks = currentUser
+    ? [
+        ...(userProfile?.role === 'client'
+          ? [
+              { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
+              { to: '/search', label: 'Search', icon: Search }
+            ]
+          : []),
+        ...(userProfile?.role === 'labour'
+          ? [{ to: '/labour/dashboard', label: 'Overview', icon: LayoutDashboard }]
+          : []),
+        ...(userProfile?.role === 'admin'
+          ? [{ to: '/admin', label: 'Overview', icon: LayoutDashboard }]
+          : []),
+        { to: '/about', label: 'About', icon: CircleHelp }
+      ]
+    : [
+        { to: '/', label: 'Home', icon: LayoutDashboard },
+        { to: '/search', label: 'Search', icon: Search },
+        { to: '/about', label: 'About', icon: CircleHelp }
+      ];
 
-  if (!currentUser) {
-    baseLinks.push({ to: '/search', label: t('nav.search') });
-  }
-
-  if (userProfile?.role === 'labour') {
-    baseLinks.push({ to: '/labour/dashboard', label: t('nav.labour') });
-  }
-
-  if (userProfile?.role === 'client') {
-    baseLinks.push({ to: '/search', label: t('nav.search') });
-    baseLinks.push({ to: '/client/dashboard', label: t('nav.client') });
-  }
-
-  if (userProfile?.role === 'admin') {
-    baseLinks.push({ to: '/admin', label: t('nav.admin') });
-  }
-
-  if (currentUser) {
-    baseLinks.push({ to: '/chat', label: t('nav.chat') });
-    baseLinks.push({ to: '/notifications', label: t('nav.notifications') });
-  }
-
-  baseLinks.push({ to: '/about', label: t('nav.about') });
+  const quickLinks = currentUser
+    ? [
+        { to: '/notifications', label: 'Notifications', icon: Bell, matchers: ['/notifications'] },
+        { to: '/chat', label: 'Chat', icon: MessageCircle, matchers: ['/chat'] }
+      ]
+    : [];
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-      <div className="page-shell flex items-center justify-between gap-3 py-4">
+      <div className="page-shell flex items-center justify-between gap-3 py-3">
         <Link to={primaryPath} className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-600 text-white shadow-glow">
-            <BriefcaseBusiness size={22} />
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 text-white shadow-glow">
+            <BriefcaseBusiness size={20} />
           </div>
-          <div>
-            <p className="font-display text-lg font-bold text-slate-950">WorkLink</p>
-            <p className="text-xs text-slate-500">Hire locally. Work confidently.</p>
-          </div>
+          <p className="font-display text-lg font-bold text-slate-950">WorkLink</p>
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">
-          {baseLinks.map((link) => (
-            <NavLink key={link.to} to={link.to} className={linkClassName}>
-              {link.label}
-            </NavLink>
-          ))}
+          {baseLinks.map((link) => {
+            const Icon = link.icon;
+
+            return (
+              <NavLink key={link.to} to={link.to} className={linkClassName}>
+                <Icon size={15} />
+                {link.label}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <LanguageSwitcher />
           {currentUser ? (
             <>
+              {quickLinks.map((link) => {
+                const Icon = link.icon;
+
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={actionButtonClass(isPathActive(pathname, link.matchers))}
+                    aria-label={link.label}
+                    title={link.label}
+                  >
+                    <Icon size={16} />
+                  </Link>
+                );
+              })}
               <Link
                 to="/settings"
-                className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-2 py-1 pr-4 shadow-sm transition hover:border-brand-300"
+                className={clsx(
+                  'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 shadow-sm transition hover:border-brand-200',
+                  isPathActive(pathname, ['/settings', '/complete-profile*']) &&
+                    'border-brand-200 bg-brand-50'
+                )}
+                aria-label="Open profile"
+                title="Profile"
               >
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">
                   {profileInitial}
                 </span>
-                <span className="text-left">
-                  <span className="block max-w-[140px] truncate text-sm font-semibold text-slate-950">
-                    {userProfile?.fullName || 'Profile'}
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    {userProfile?.role || 'Account'}
-                  </span>
+                <span className="hidden max-w-[104px] truncate text-sm font-semibold text-slate-700 xl:block">
+                  {userProfile?.fullName || 'Profile'}
                 </span>
               </Link>
-              <Button variant="outline" onClick={logout}>
-                Logout
-              </Button>
             </>
           ) : (
             <Button as={Link} to="/auth" variant="primary">
-              {t('nav.login')}
+              Sign in
             </Button>
           )}
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
           {currentUser ? (
-            <Link
-              to="/settings"
-              className="grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-glow"
-              onClick={() => setIsOpen(false)}
-              aria-label="Open profile"
-            >
-              {profileInitial}
-            </Link>
+            <>
+              {quickLinks.map((link) => {
+                const Icon = link.icon;
+
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={actionButtonClass(isPathActive(pathname, link.matchers))}
+                    aria-label={link.label}
+                    title={link.label}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Icon size={16} />
+                  </Link>
+                );
+              })}
+              <Link
+                to="/settings"
+                className={clsx(
+                  'grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-glow',
+                  isPathActive(pathname, ['/settings', '/complete-profile*']) &&
+                    'ring-2 ring-brand-200 ring-offset-2'
+                )}
+                onClick={() => setIsOpen(false)}
+                aria-label="Open profile"
+              >
+                {profileInitial}
+              </Link>
+            </>
           ) : null}
           <Button
             variant="ghost"
@@ -129,19 +190,21 @@ export const Navbar = () => {
       {isOpen ? (
         <div className="page-shell space-y-3 border-t border-slate-200 pb-4 pt-3 lg:hidden">
           <div className="flex flex-col gap-1">
-            {baseLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={linkClassName}
-                onClick={() => setIsOpen(false)}
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <LanguageSwitcher />
+            {baseLinks.map((link) => {
+              const Icon = link.icon;
+
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={linkClassName}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Icon size={15} />
+                  {link.label}
+                </NavLink>
+              );
+            })}
           </div>
           {currentUser ? (
             <Link
@@ -156,17 +219,12 @@ export const Navbar = () => {
                 <span className="block text-sm font-semibold text-slate-950">
                   {userProfile?.fullName || 'Profile'}
                 </span>
-                <span className="block text-xs text-slate-500">{userProfile?.role || 'Account'}</span>
+                <span className="block text-xs text-slate-500">Profile & settings</span>
               </span>
             </Link>
-          ) : null}
-          {currentUser ? (
-            <Button variant="outline" className="w-full" onClick={logout}>
-              Logout
-            </Button>
           ) : (
             <Button as={Link} to="/auth" className="w-full" onClick={() => setIsOpen(false)}>
-              {t('nav.login')}
+              Sign in
             </Button>
           )}
         </div>

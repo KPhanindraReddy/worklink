@@ -1,10 +1,13 @@
 import {
+  Bell,
   CalendarClock,
   IndianRupee,
+  LayoutDashboard,
   MapPinned,
   MessageCircle,
   Navigation,
   Phone,
+  Settings,
   Star,
   WalletCards
 } from 'lucide-react';
@@ -35,10 +38,10 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
 const sidebarItems = [
-  { to: '/labour/dashboard', label: 'Overview' },
-  { to: '/chat', label: 'Chat' },
-  { to: '/notifications', label: 'Notifications' },
-  { to: '/settings', label: 'Settings' }
+  { to: '/labour/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/chat', label: 'Chat', icon: MessageCircle },
+  { to: '/notifications', label: 'Alerts', icon: Bell },
+  { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
 const buildAvatarUrl = (fullName) =>
@@ -471,23 +474,13 @@ const LabourDashboardPage = () => {
             <Card className="overflow-hidden rounded-[36px]">
               <div className="grid gap-6 p-5 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-brand-700">
-                    Labour dashboard
-                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge tone="blue">{dashboardProfile.category}</Badge>
+                    <Badge tone="slate">{dashboardProfile.currentLocation}</Badge>
+                  </div>
                   <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
                     {dashboardProfile.fullName}
                   </h1>
-                  <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-                    Manage requests, availability, and active work.
-                  </p>
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    <Badge tone="blue">
-                      {dashboardProfile.category}
-                    </Badge>
-                    <Badge tone="blue">
-                      {dashboardProfile.currentLocation}
-                    </Badge>
-                  </div>
                 </div>
                 <img
                   src={dashboardProfile.profilePhoto}
@@ -504,9 +497,6 @@ const LabourDashboardPage = () => {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Availability</h2>
-                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Toggle your live availability so clients know whether to book now or later.
-                    </p>
                   </div>
                   <Badge tone={dashboardProfile.availability === 'Available' ? 'emerald' : 'amber'}>
                     {updatingAvailability ? 'Updating...' : dashboardProfile.availability}
@@ -549,8 +539,8 @@ const LabourDashboardPage = () => {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Accepted and active work</h2>
-                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Use directions to reach the client, then enter the client OTP to start the job.
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
+                      Directions and OTP stay here.
                     </p>
                   </div>
                   <Badge tone={inProgressBooking ? 'amber' : 'emerald'}>
@@ -695,8 +685,8 @@ const LabourDashboardPage = () => {
                           ) : null}
                           <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
                             <p className="font-semibold text-slate-950">Location unlocks after acceptance</p>
-                            <p className="mt-2 leading-6">
-                              Accept this request to view the client address, live route, and the OTP start step.
+                            <p className="mt-2 text-slate-500">
+                              Accept to view the route and start OTP.
                             </p>
                           </div>
                           <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
@@ -752,9 +742,6 @@ const LabourDashboardPage = () => {
 
               <Card>
                 <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Financial overview</h2>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Labour-only money tracking for pending customer requests, accepted bookings, and completed work.
-                </p>
                 <div className="mt-5 space-y-4">
                   {financialSummary.map((item) => (
                     <div key={item.label} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">

@@ -8,6 +8,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import {
   ensureConversation,
+  getMessages,
   sendMessage,
   subscribeConversations,
   subscribeMessages

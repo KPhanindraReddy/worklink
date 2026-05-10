@@ -4,19 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { routeByRole } from '../../utils/authFlow';
-
-const matchesPath = (pathname, matchers) =>
-  matchers.some((matcher) => {
-    if (typeof matcher === 'function') {
-      return matcher(pathname);
-    }
-
-    if (matcher.endsWith('*')) {
-      return pathname.startsWith(matcher.slice(0, -1));
-    }
-
-    return pathname === matcher;
-  });
+import { matchesRoutePath } from '../../utils/routeMatching';
 
 export const buildBottomDockItems = ({ currentUser, userProfile }) => {
   const role = userProfile?.role;
@@ -80,7 +68,7 @@ export const BottomDockNav = () => {
         >
           {items.map((item) => {
             const Icon = item.icon;
-            const isActive = matchesPath(pathname, item.matchers);
+            const isActive = matchesRoutePath(pathname, item.matchers);
 
             return (
               <Link

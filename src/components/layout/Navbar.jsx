@@ -14,6 +14,7 @@ import clsx from 'clsx';
 import { Button } from '../common/Button';
 import { useAuth } from '../../context/AuthContext';
 import { routeByRole } from '../../utils/authFlow';
+import { matchesRoutePath } from '../../utils/routeMatching';
 import { LiveLocationBadge } from './LiveLocationBadge';
 
 const linkClassName = ({ isActive }) =>
@@ -26,15 +27,6 @@ const linkClassName = ({ isActive }) =>
 
 const getProfileInitial = (userProfile, currentUser) =>
   (userProfile?.fullName || currentUser?.displayName || 'U').trim().charAt(0).toUpperCase();
-
-const isPathActive = (pathname, matchers) =>
-  matchers.some((matcher) => {
-    if (matcher.endsWith('*')) {
-      return pathname.startsWith(matcher.slice(0, -1));
-    }
-
-    return pathname === matcher;
-  });
 
 const actionButtonClass = (isActive) =>
   clsx(
@@ -139,7 +131,7 @@ export const Navbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={linkClassName({ isActive: isPathActive(pathname, link.matchers) })}
+                className={linkClassName({ isActive: matchesRoutePath(pathname, link.matchers) })}
               >
                 <Icon size={15} />
                 {link.label}
@@ -158,7 +150,7 @@ export const Navbar = () => {
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={actionButtonClass(isPathActive(pathname, link.matchers))}
+                    className={actionButtonClass(matchesRoutePath(pathname, link.matchers))}
                     aria-label={link.label}
                     title={link.label}
                   >
@@ -170,7 +162,7 @@ export const Navbar = () => {
                 to="/settings"
                 className={clsx(
                   'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 shadow-sm transition hover:border-brand-200',
-                  isPathActive(pathname, ['/settings', '/complete-profile*']) &&
+                  matchesRoutePath(pathname, ['/settings', '/complete-profile*']) &&
                     'border-brand-200 bg-brand-50'
                 )}
                 aria-label="Open profile"
@@ -201,7 +193,7 @@ export const Navbar = () => {
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={actionButtonClass(isPathActive(pathname, link.matchers))}
+                    className={actionButtonClass(matchesRoutePath(pathname, link.matchers))}
                     aria-label={link.label}
                     title={link.label}
                     onClick={() => setIsOpen(false)}
@@ -214,7 +206,7 @@ export const Navbar = () => {
                 to="/settings"
                 className={clsx(
                   'grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-glow',
-                  isPathActive(pathname, ['/settings', '/complete-profile*']) &&
+                  matchesRoutePath(pathname, ['/settings', '/complete-profile*']) &&
                     'ring-2 ring-brand-200 ring-offset-2'
                 )}
                 onClick={() => setIsOpen(false)}
@@ -252,7 +244,7 @@ export const Navbar = () => {
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={linkClassName({ isActive: isPathActive(pathname, link.matchers) })}
+                  className={linkClassName({ isActive: matchesRoutePath(pathname, link.matchers) })}
                   onClick={() => setIsOpen(false)}
                 >
                   <Icon size={15} />

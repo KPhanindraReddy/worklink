@@ -1,52 +1,51 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
+
+const vendorChunkGroups = [
+  ['react-vendor', ['react', 'react-dom', 'scheduler']],
+  ['router', ['react-router', '@remix-run']],
+  ['firebase', ['firebase']],
+  ['i18n', ['i18next', 'react-i18next']],
+  [
+    'ui-vendor',
+    ['lucide-react', '@headlessui', 'framer-motion', 'clsx', 'react-hot-toast', 'react-helmet-async']
+  ],
+  ['date-utils', ['date-fns']]
+];
+
+const resolveManualChunk = (id) => {
+  if (!id.includes('node_modules')) {
+    return undefined;
+  }
+
+  const normalizedId = id.replace(/\\/g, '/');
+
+  for (const [chunkName, packages] of vendorChunkGroups) {
+    if (packages.some((packageName) => normalizedId.includes(`/node_modules/${packageName}/`))) {
+      return chunkName;
+    }
+  }
+
+  return 'vendor';
+};
 
 export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'pwa-192x192.svg', 'pwa-512x512.svg'],
-      manifest: {
-        name: 'WorkLink - Labour Hiring Marketplace',
-        short_name: 'WorkLink',
-        description:
-          'A modern labour hiring marketplace for skilled workers and clients.',
-        theme_color: '#1d4ed8',
-        background_color: '#071122',
-        display: 'standalone',
-        start_url: '/',
-        icons: [
-          {
-            src: '/pwa-192x192.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          },
-          {
-            src: '/pwa-512x512.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
-        navigateFallback: '/index.html'
-      },
-      devOptions: {
-        enabled: false
+  plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: resolveManualChunk
       }
-    })
-  ],
+    }
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
+    }
+  },
+  preview: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
     }

@@ -7,22 +7,11 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppErrorBoundary } from './components/common/AppErrorBoundary';
-import { recoverRuntimeApp } from './utils/runtimeRecovery';
+import { installRuntimeRecovery } from './utils/runtimeRecovery';
 import './i18n';
 import './styles/index.css';
 
-if ('serviceWorker' in navigator && window.location.hostname === 'localhost') {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((registration) => {
-      registration.unregister();
-    });
-  });
-}
-
-window.addEventListener('vite:preloadError', (event) => {
-  event.preventDefault();
-  recoverRuntimeApp('stale-bundle');
-});
+installRuntimeRecovery();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

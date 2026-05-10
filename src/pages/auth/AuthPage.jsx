@@ -217,6 +217,11 @@ const AuthPage = () => {
 
     try {
       const user = await loginWithGoogle();
+
+      if (!user) {
+        return;
+      }
+
       const profile = await ensureProfileRecord(user, {
         forceBaseWrite: mode === 'signup',
         fallbackRole: role
@@ -246,6 +251,11 @@ const AuthPage = () => {
 
     try {
       const user = await loginWithApple();
+
+      if (!user) {
+        return;
+      }
+
       const profile = await ensureProfileRecord(user, {
         forceBaseWrite: mode === 'signup',
         fallbackRole: role

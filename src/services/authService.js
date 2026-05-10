@@ -1,6 +1,7 @@
 import {
   RecaptchaVerifier,
   createUserWithEmailAndPassword,
+  signInWithRedirect,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
@@ -11,10 +12,23 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { appleProvider, auth, db, googleProvider, isFirebaseConfigured } from '../firebase/config';
 
 let recaptchaVerifier = null;
+const shouldUseRedirectAuth = () =>
+  typeof window !== 'undefined' &&
+  !['localhost', '127.0.0.1'].includes(window.location.hostname);
 const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink User')}&background=1d4ed8&color=ffffff`;
 const getCreatedAtValue = (user) =>
   user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : serverTimestamp();
+
+const authenticateWithProvider = async (provider) => {
+  if (shouldUseRedirectAuth()) {
+    await signInWithRedirect(auth, provider);
+    return null;
+  }
+
+  const credentials = await signInWithPopup(auth, provider);
+  return credentials.user;
+};
 
 const buildBaseProfile = (user, formValues = {}) => {
   const fullName = formValues.fullName || user.displayName || 'WorkLink User';
@@ -74,8 +88,7 @@ export const loginWithGoogle = async () => {
     throw new Error('Add Firebase keys in .env before using Google login.');
   }
 
-  const credentials = await signInWithPopup(auth, googleProvider);
-  return credentials.user;
+  return authenticateWithProvider(googleProvider);
 };
 
 export const loginWithApple = async () => {
@@ -83,8 +96,7 @@ export const loginWithApple = async () => {
     throw new Error('Add Firebase keys in .env before using Apple login.');
   }
 
-  const credentials = await signInWithPopup(auth, appleProvider);
-  return credentials.user;
+  return authenticateWithProvider(appleProvider);
 };
 
 export const sendPhoneOtp = async (phoneNumber) => {

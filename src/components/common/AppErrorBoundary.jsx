@@ -12,9 +12,12 @@ export class AppErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error) {
-    console.error('WorkLink runtime error:', error);
     const recoveryReason = getRuntimeRecoveryReason(error);
-    recoverRuntimeApp(recoveryReason);
+    const didRecover = recoverRuntimeApp(recoveryReason);
+
+    if (!didRecover) {
+      console.error('WorkLink runtime error:', error);
+    }
   }
 
   render() {

@@ -1,4 +1,4 @@
-import { CalendarDays, LoaderCircle, MapPin, Send, ShieldCheck, X } from 'lucide-react';
+﻿import { CalendarDays, LoaderCircle, LocateFixed, MapPin, Send, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
@@ -7,12 +7,14 @@ import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { InputField } from '../common/InputField';
 import { TextAreaField } from '../common/TextAreaField';
+import { VerificationBadge } from '../common/VerificationBadge';
 import { useAuth } from '../../context/AuthContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { createBooking, subscribeBookingsForUser } from '../../services/bookingService';
 import { createNotification } from '../../services/notificationService';
 import { buildAppointmentDateTime, formatCurrency } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { formatCoordinates, getLocationLabel, normalizeCoordinates } from '../../utils/location';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
 const generateStartOtp = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -32,7 +34,7 @@ export const QuickBookingDialog = ({
   onClose
 }) => {
   const { currentUser, userProfile } = useAuth();
-  const geolocation = useGeolocation(isOpen && userProfile?.role === 'client');
+  const geolocation = useGeolocation();
   const [bookings, setBookings] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -40,15 +42,16 @@ export const QuickBookingDialog = ({
   const [formValues, setFormValues] = useState(
     buildInitialFormValues({ labour, userProfile, defaultService, defaultBudget })
   );
-
-  const clientLocation = useMemo(
-    () =>
-      geolocation.latitude !== null && geolocation.longitude !== null
-        ? { latitude: geolocation.latitude, longitude: geolocation.longitude }
-        : null,
-    [geolocation.latitude, geolocation.longitude]
+  const [requestCoordinates, setRequestCoordinates] = useState(
+    () => normalizeCoordinates(userProfile?.coordinates) || null
   );
+
+  const clientLocation = requestCoordinates;
   const isClient = userProfile?.role === 'client';
+  const savedLocationLabel = useMemo(
+    () => getLocationLabel(userProfile, { fallback: '' }),
+    [userProfile]
+  );
   const pendingBookings = useMemo(
     () => bookings.filter((booking) => booking.status === 'pending'),
     [bookings]
@@ -99,6 +102,7 @@ export const QuickBookingDialog = ({
     setFormValues(buildInitialFormValues({ labour, userProfile, defaultService, defaultBudget }));
     setSelectedDate('');
     setSelectedSlot('');
+    setRequestCoordinates(normalizeCoordinates(userProfile?.coordinates) || null);
   }, [
     defaultBudget,
     defaultService,
@@ -129,6 +133,18 @@ export const QuickBookingDialog = ({
       ...prev,
       [key]: value
     }));
+
+  const handleRefreshLocation = async () => {
+    const coordinates = await geolocation.requestLocation({ force: true });
+
+    if (!coordinates) {
+      toast.error(geolocation.error || 'Allow browser location to update this request.');
+      return;
+    }
+
+    setRequestCoordinates(coordinates);
+    toast.success('Location updated for this booking.');
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -228,12 +244,7 @@ export const QuickBookingDialog = ({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-lg font-semibold text-slate-950">{labour.fullName}</p>
-                    {labour.verified ? (
-                      <Badge tone="blue" className="gap-1">
-                        <ShieldCheck size={12} />
-                        Verified
-                      </Badge>
-                    ) : null}
+                    <VerificationBadge verified={labour.verified} />
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{labour.category}</p>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -335,13 +346,25 @@ export const QuickBookingDialog = ({
             <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               <div className="flex items-center gap-2 font-semibold text-slate-900">
                 <CalendarDays size={16} className="text-brand-600" />
-                Live location
+                Request location
               </div>
               <p className="mt-2 leading-6">
                 {clientLocation
-                  ? `${clientLocation.latitude.toFixed(5)}, ${clientLocation.longitude.toFixed(5)} attached to this request.`
+                  ? `${savedLocationLabel || 'Saved location'} - ${formatCoordinates(clientLocation)}`
                   : geolocation.error || 'Manual address will be used if GPS is unavailable.'}
               </p>
+              <div className="mt-4">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRefreshLocation}
+                  disabled={geolocation.loading}
+                >
+                  {geolocation.loading ? <LoaderCircle size={15} className="animate-spin" /> : <LocateFixed size={15} />}
+                  {clientLocation ? 'Update live location' : 'Use live location'}
+                </Button>
+              </div>
             </div>
 
             <BookingCalendar
@@ -370,3 +393,4 @@ export const QuickBookingDialog = ({
     </div>
   );
 };
+

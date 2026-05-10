@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { CalendarDays, MapPin, Phone, ShieldCheck, Star } from 'lucide-react';
+import { CalendarDays, MapPin, Phone, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
@@ -8,9 +8,10 @@ import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
 import { PageSEO } from '../../components/common/PageSEO';
 import { SectionHeading } from '../../components/common/SectionHeading';
+import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
-import { getLabourById } from '../../services/labourService';
+import { subscribeLabourById } from '../../services/labourService';
 import { formatCurrency } from '../../utils/formatters';
 
 const LabourProfilePage = () => {
@@ -20,7 +21,7 @@ const LabourProfilePage = () => {
   const [selectedQuickBookLabour, setSelectedQuickBookLabour] = useState(null);
 
   useEffect(() => {
-    getLabourById(labourId).then(setLabour);
+    return subscribeLabourById(labourId, setLabour, () => setLabour(null));
   }, [labourId]);
 
   const canRevealContact = Boolean(userProfile?.role === 'client' && userProfile?.verified && labour?.verified);
@@ -58,12 +59,7 @@ const LabourProfilePage = () => {
                   <Badge tone={labour.availability === 'Available' ? 'emerald' : 'amber'}>
                     {labour.availability}
                   </Badge>
-                  {labour.verified ? (
-                    <Badge tone="blue" className="gap-1">
-                      <ShieldCheck size={12} />
-                      Verified badge
-                    </Badge>
-                  ) : null}
+                  <VerificationBadge verified={labour.verified} />
                 </div>
                 <h1 className="mt-5 font-display text-4xl font-bold text-slate-950 dark:text-white">
                   {labour.fullName}

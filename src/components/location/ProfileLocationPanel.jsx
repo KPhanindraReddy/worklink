@@ -15,7 +15,7 @@ export const ProfileLocationPanel = ({
   savedCoordinates = null,
   onApplyLocation
 }) => {
-  const geolocation = useGeolocation(true);
+  const geolocation = useGeolocation();
   const liveCoordinates = useMemo(
     () =>
       hasCoordinates({
@@ -30,6 +30,20 @@ export const ProfileLocationPanel = ({
     [geolocation.latitude, geolocation.longitude]
   );
   const savedMapsUrl = buildMapsUrl(savedCoordinates, locationValue);
+  const savedLabel = String(locationValue ?? '').trim() || formatCoordinates(savedCoordinates);
+
+  const handleApplyLiveLocation = async () => {
+    const coordinates = await geolocation.requestLocation({ force: true });
+
+    if (!coordinates) {
+      return;
+    }
+
+    onApplyLocation?.({
+      label: String(locationValue ?? '').trim() || formatCoordinates(coordinates),
+      coordinates
+    });
+  };
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -41,10 +55,12 @@ export const ProfileLocationPanel = ({
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-600">
             {liveCoordinates
-              ? `Current GPS: ${formatCoordinates(liveCoordinates)}`
+              ? `Updated GPS ready: ${formatCoordinates(liveCoordinates)}`
               : geolocation.loading
-                ? 'Finding your current GPS coordinates.'
-                : geolocation.error || 'Attach live GPS so search and maps stay accurate.'}
+                ? 'Updating your GPS coordinates.'
+                : savedLabel
+                  ? `Saved location: ${savedLabel}`
+                  : geolocation.error || 'Save location once, then update it only when you move.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -52,20 +68,15 @@ export const ProfileLocationPanel = ({
             type="button"
             size="sm"
             variant="outline"
-            disabled={!liveCoordinates}
-            onClick={() =>
-              onApplyLocation?.({
-                label: String(locationValue ?? '').trim() || formatCoordinates(liveCoordinates),
-                coordinates: liveCoordinates
-              })
-            }
+            disabled={geolocation.loading}
+            onClick={handleApplyLiveLocation}
           >
             {geolocation.loading ? (
               <LoaderCircle size={15} className="animate-spin" />
             ) : (
               <LocateFixed size={15} />
             )}
-            Use live location
+            {savedCoordinates ? 'Update live location' : 'Use live location'}
           </Button>
           {savedMapsUrl ? (
             <Button

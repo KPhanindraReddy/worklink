@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { CalendarDays, MapPin, ShieldCheck, Star } from 'lucide-react';
+import { CalendarDays, MapPin, Star } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { Card } from '../common/Card';
+import { VerificationBadge } from '../common/VerificationBadge';
 import { formatCurrency, formatDistanceKm } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,12 +33,7 @@ export const LabourCard = ({ labour, showMatchScore = false, onQuickBook }) => {
             <h3 className="truncate text-lg font-semibold text-slate-950 dark:text-white">
               {labour.fullName}
             </h3>
-            {labour.verified ? (
-              <Badge tone="blue" className="gap-1">
-                <ShieldCheck size={12} />
-                Verified
-              </Badge>
-            ) : null}
+            <VerificationBadge verified={labour.verified} />
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-300">{labour.category}</p>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">

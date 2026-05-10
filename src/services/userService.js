@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
 
 export const getUserProfile = async (uid) => {
@@ -30,5 +30,27 @@ export const updateUserSettings = async (uid, settings) => {
       updatedAt: serverTimestamp()
     },
     { merge: true }
+  );
+};
+
+export const subscribeUserProfile = (uid, onNext, onError) => {
+  if (!uid || !isFirebaseConfigured || !db) {
+    onNext(null);
+    return () => {};
+  }
+
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snapshot) => {
+      onNext(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
+    },
+    (error) => {
+      if (error?.code === 'permission-denied') {
+        onNext(null);
+        return;
+      }
+
+      onError?.(error);
+    }
   );
 };

@@ -8,6 +8,7 @@ import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { SelectField } from '../../components/common/SelectField';
 import { TextAreaField } from '../../components/common/TextAreaField';
+import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { ProfileLocationPanel } from '../../components/location/ProfileLocationPanel';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
@@ -203,9 +204,11 @@ const SettingsPage = () => {
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">{roleSummary}</Badge>
-                    <Badge tone={userProfile?.verified ? 'emerald' : 'amber'}>
-                      {userProfile?.verified ? 'Verified profile' : 'Verification pending'}
-                    </Badge>
+                    <VerificationBadge
+                      verified={userProfile?.verified}
+                      verifiedLabel="Verified profile"
+                      pendingLabel="Not verified"
+                    />
                   </div>
                   <h1 className="mt-2 text-2xl font-bold text-slate-950">
                     {formValues.fullName.trim() || 'Profile'}

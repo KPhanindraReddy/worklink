@@ -12,7 +12,7 @@ import {
   sendPhoneOtp,
   verifyPhoneOtp
 } from '../services/authService';
-import { getUserProfile } from '../services/userService';
+import { getUserProfile, subscribeUserProfile } from '../services/userService';
 
 const AuthContext = createContext(null);
 
@@ -27,42 +27,36 @@ export const AuthProvider = ({ children }) => {
       return undefined;
     }
 
-    let authChangeId = 0;
+    let unsubscribeProfile = null;
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      const changeId = authChangeId + 1;
-      authChangeId = changeId;
-
-      setLoading(true);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      unsubscribeProfile?.();
+      unsubscribeProfile = null;
       setCurrentUser(firebaseUser ?? null);
 
       if (!firebaseUser) {
         setUserProfile(null);
-        if (authChangeId === changeId) {
-          setLoading(false);
-        }
+        setLoading(false);
         return;
       }
 
-      try {
-        const profile = await getUserProfile(firebaseUser.uid);
-        if (authChangeId === changeId) {
+      setLoading(true);
+      unsubscribeProfile = subscribeUserProfile(
+        firebaseUser.uid,
+        (profile) => {
           setUserProfile(profile);
-        }
-      } catch (error) {
-        console.warn('WorkLink profile read skipped:', error?.code ?? error?.message ?? error);
-        if (authChangeId === changeId) {
+          setLoading(false);
+        },
+        (error) => {
+          console.warn('WorkLink profile read skipped:', error?.code ?? error?.message ?? error);
           setUserProfile(null);
+          setLoading(false);
         }
-      }
-
-      if (authChangeId === changeId) {
-        setLoading(false);
-      }
+      );
     });
 
     return () => {
-      authChangeId += 1;
+      unsubscribeProfile?.();
       unsubscribe();
     };
   }, []);

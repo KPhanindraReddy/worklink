@@ -14,11 +14,11 @@ import { SectionHeading } from '../../components/common/SectionHeading';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { useDebounce } from '../../hooks/useDebounce';
-import { useGeolocation } from '../../hooks/useGeolocation';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import { searchLabours } from '../../services/labourService';
 import { resolvePostAuthPath } from '../../utils/authFlow';
 import { formatCurrency, formatDistanceKm } from '../../utils/formatters';
+import { getLocationLabel, normalizeCoordinates } from '../../utils/location';
 import { availabilityOptions, workCategories } from '../../utils/constants';
 
 const SearchPage = () => {
@@ -37,12 +37,22 @@ const SearchPage = () => {
   const [quickBookState, setQuickBookState] = useState(null);
   const [searching, setSearching] = useState(false);
   const debouncedFilters = useDebounce(filters, 300);
-  const geolocation = useGeolocation(true);
   const { isListening, startListening } = useVoiceSearch({
     lang: 'en-IN',
     onResult: (value) => setFilters((prev) => ({ ...prev, query: value }))
   });
   const shouldRedirectRole = currentUser && userProfile?.role && userProfile.role !== 'client';
+  const savedOrigin = useMemo(
+    () => normalizeCoordinates(userProfile?.coordinates) || null,
+    [userProfile?.coordinates]
+  );
+  const savedLocationLabel = useMemo(
+    () =>
+      getLocationLabel(userProfile, {
+        fallback: ''
+      }),
+    [userProfile]
+  );
 
   useEffect(() => {
     if (shouldRedirectRole) {
@@ -61,7 +71,7 @@ const SearchPage = () => {
         minExperience: debouncedFilters.minExperience,
         maxPrice: debouncedFilters.maxPrice
       },
-      geolocation
+      savedOrigin
     )
       .then((items) => {
         if (!isActive) {
@@ -92,7 +102,7 @@ const SearchPage = () => {
     return () => {
       isActive = false;
     };
-  }, [debouncedFilters, geolocation.latitude, geolocation.longitude, shouldRedirectRole]);
+  }, [debouncedFilters, savedOrigin, shouldRedirectRole]);
 
   const availableResults = useMemo(
     () =>
@@ -215,17 +225,17 @@ const SearchPage = () => {
                 value={filters.maxPrice}
                 onChange={(event) => setFilters((prev) => ({ ...prev, maxPrice: event.target.value }))}
               />
-              <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
+                <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
                 <div className="flex items-center gap-2 font-semibold">
                   <MapPin size={16} />
                   Nearby labour
                 </div>
                 <p className="mt-2">
-                  {geolocation.error
-                    ? geolocation.error
-                    : geolocation.latitude
-                      ? 'Location access is active. Results are ranked by distance too.'
-                      : 'Allow location in your browser to discover nearby workers faster.'}
+                  {savedOrigin
+                    ? `Using saved location${savedLocationLabel ? `: ${savedLocationLabel}` : ''}. Results are ranked by distance too.`
+                    : currentUser
+                      ? 'Save your location once in profile to rank workers by distance.'
+                      : 'Sign in and save a location if you want distance-based matching.'}
                 </p>
               </div>
             </Card>

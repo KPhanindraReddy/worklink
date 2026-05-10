@@ -1,10 +1,7 @@
 import clsx from 'clsx';
-import { LoaderCircle, MapPin } from 'lucide-react';
-import { useMemo } from 'react';
-import { useGeolocation } from '../../hooks/useGeolocation';
+import { MapPin } from 'lucide-react';
 import {
   buildMapsUrl,
-  formatCoordinates,
   getLocationLabel,
   hasCoordinates
 } from '../../utils/location';
@@ -27,31 +24,17 @@ const getRoleLabel = (role) => {
 
 export const LiveLocationBadge = ({ currentUser, userProfile, compact = false, className }) => {
   const role = userProfile?.role;
-  const geolocation = useGeolocation(Boolean(currentUser && ['client', 'labour'].includes(role)));
-  const liveCoordinates = useMemo(
-    () =>
-      hasCoordinates({
-        latitude: geolocation.latitude,
-        longitude: geolocation.longitude
-      })
-        ? {
-            latitude: geolocation.latitude,
-            longitude: geolocation.longitude
-          }
-        : null,
-    [geolocation.latitude, geolocation.longitude]
-  );
   const areaLabel = getLocationLabel(userProfile, {
     preferCurrent: role === 'labour',
     fallback: ''
   });
-  const locationLabel = areaLabel || (liveCoordinates ? formatCoordinates(liveCoordinates) : 'Location unavailable');
-  const caption = geolocation.loading
-    ? `Finding ${getRoleLabel(role).toLowerCase()} location`
-    : liveCoordinates
-      ? `${getRoleLabel(role)} live location active`
-      : `${getRoleLabel(role)} saved location`;
-  const mapsUrl = buildMapsUrl(liveCoordinates || userProfile?.coordinates, areaLabel);
+  const hasSavedCoordinates = hasCoordinates(userProfile?.coordinates);
+  const locationLabel = areaLabel || 'Location unavailable';
+  const caption =
+    areaLabel || hasSavedCoordinates
+      ? `${getRoleLabel(role)} saved location`
+      : `Add ${getRoleLabel(role).toLowerCase()} location`;
+  const mapsUrl = buildMapsUrl(userProfile?.coordinates, areaLabel);
   const Container = mapsUrl ? 'a' : 'div';
 
   return (
@@ -70,7 +53,7 @@ export const LiveLocationBadge = ({ currentUser, userProfile, compact = false, c
       )}
     >
       <span className="grid h-9 w-9 flex-none place-items-center rounded-2xl bg-slate-950 text-white">
-        {geolocation.loading ? <LoaderCircle size={16} className="animate-spin" /> : <MapPin size={16} />}
+        <MapPin size={16} />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">

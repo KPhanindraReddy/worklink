@@ -4,15 +4,18 @@ import {
   getCountFromServer,
   getDocs,
   limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  startAfter,
   updateDoc,
   where
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/config';
 import { workCategories } from '../utils/constants';
 
+const DIRECTORY_PAGE_SIZE = 18;
 const fallbackCategories = workCategories.map((category, index) => ({
   id: `category-${index + 1}`,
   name: category,
@@ -61,6 +64,35 @@ export const getAdminOverview = async () => {
   };
 };
 
+export const listAdminProfiles = async ({
+  role = 'labour',
+  cursor = null,
+  pageSize = DIRECTORY_PAGE_SIZE
+} = {}) => {
+  if (!isFirebaseConfigured || !db) {
+    return {
+      items: [],
+      cursor: null,
+      hasMore: false
+    };
+  }
+
+  const collectionName = role === 'client' ? 'clients' : 'labours';
+  const directoryQuery = query(
+    collection(db, collectionName),
+    orderBy('updatedAt', 'desc'),
+    ...(cursor ? [startAfter(cursor)] : []),
+    limit(pageSize)
+  );
+  const snapshot = await getDocs(directoryQuery);
+
+  return {
+    items: snapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    cursor: snapshot.docs.at(-1) ?? null,
+    hasMore: snapshot.docs.length === pageSize
+  };
+};
+
 export const verifyLabourAccount = async (labourId) => {
   if (!isFirebaseConfigured || !db) {
     return;
@@ -75,23 +107,26 @@ export const verifyLabourAccount = async (labourId) => {
     doc(db, 'users', labourId),
     {
       verified: true,
-      verifiedAt: serverTimestamp()
+      verifiedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     },
     { merge: true }
   );
 };
 
-export const banUser = async (userId) => {
+export const banUser = async ({ userId, role } = {}) => {
   if (!isFirebaseConfigured || !db) {
     return;
   }
 
-  await setDoc(
-    doc(db, 'users', userId),
-    {
-      accountStatus: 'banned',
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
+  const payload = {
+    accountStatus: 'banned',
+    updatedAt: serverTimestamp()
+  };
+
+  await Promise.all([
+    setDoc(doc(db, 'users', userId), payload, { merge: true }),
+    ...(role === 'labour' ? [setDoc(doc(db, 'labours', userId), payload, { merge: true })] : []),
+    ...(role === 'client' ? [setDoc(doc(db, 'clients', userId), payload, { merge: true })] : [])
+  ]);
 };

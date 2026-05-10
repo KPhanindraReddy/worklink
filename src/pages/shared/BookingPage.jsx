@@ -1,4 +1,4 @@
-import {
+﻿import {
   BriefcaseBusiness,
   CheckCircle2,
   Clock3,
@@ -38,6 +38,7 @@ import {
   formatDistanceKm
 } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { formatCoordinates, getLocationLabel, normalizeCoordinates } from '../../utils/location';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
 const generateStartOtp = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -57,7 +58,7 @@ const BookingPage = () => {
   const initialCategory = searchParams.get('category') ?? '';
   const initialBudget = searchParams.get('budget') ?? '';
   const { currentUser, userProfile } = useAuth();
-  const geolocation = useGeolocation(true);
+  const geolocation = useGeolocation();
   const [availableLabours, setAvailableLabours] = useState([]);
   const [selectedLabour, setSelectedLabour] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
@@ -73,14 +74,17 @@ const BookingPage = () => {
     address: userProfile?.location ?? '',
     budget: initialBudget
   });
-
-  const clientLocation = useMemo(
-    () =>
-      geolocation.latitude !== null && geolocation.longitude !== null
-        ? { latitude: geolocation.latitude, longitude: geolocation.longitude }
-        : null,
-    [geolocation.latitude, geolocation.longitude]
+  const [requestCoordinates, setRequestCoordinates] = useState(
+    () => normalizeCoordinates(userProfile?.coordinates) || null
   );
+  const clientLocation = requestCoordinates;
+  const savedProfileLocation = useMemo(
+    () => getLocationLabel(userProfile, { fallback: '' }),
+    [userProfile]
+  );
+  const locationStatusLabel = clientLocation
+    ? savedProfileLocation || formatCoordinates(clientLocation)
+    : 'Manual address only';
 
   useEffect(() => {
     if (!labourId) {
@@ -116,6 +120,12 @@ const BookingPage = () => {
       setFormValues((prev) => ({ ...prev, address: prev.address || userProfile.location }));
     }
   }, [userProfile?.location]);
+
+  useEffect(() => {
+    const savedCoordinates = normalizeCoordinates(userProfile?.coordinates) || null;
+
+    setRequestCoordinates((prev) => prev || savedCoordinates);
+  }, [userProfile?.coordinates]);
 
   useEffect(() => {
     if (!initialCategory || formValues.serviceName.trim()) {
@@ -346,6 +356,18 @@ const BookingPage = () => {
     }
   };
 
+  const handleRefreshLocation = async () => {
+    const coordinates = await geolocation.requestLocation({ force: true });
+
+    if (!coordinates) {
+      toast.error(geolocation.error || 'Allow browser location to update this request.');
+      return;
+    }
+
+    setRequestCoordinates(coordinates);
+    toast.success('Location updated for this request.');
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -448,8 +470,12 @@ const BookingPage = () => {
                       Share the work, set the address, find available labour nearby, and send one clear request.
                     </p>
                   </div>
-                  <Badge tone={geolocation.error ? 'amber' : 'emerald'}>
-                    {geolocation.loading ? 'Finding location' : geolocation.error ? 'Manual location ready' : 'Location ready'}
+                  <Badge tone={clientLocation ? 'emerald' : 'amber'}>
+                    {geolocation.loading
+                      ? 'Updating location'
+                      : clientLocation
+                        ? 'Saved location ready'
+                        : 'Manual location ready'}
                   </Badge>
                 </div>
 
@@ -584,21 +610,16 @@ const BookingPage = () => {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            if (clientLocation) {
-                              toast.success('Live coordinates attached to this request.');
-                            } else {
-                              toast.error(geolocation.error || 'Allow browser location to attach coordinates.');
-                            }
-                          }}
+                          onClick={handleRefreshLocation}
+                          disabled={geolocation.loading}
                         >
                           <LocateFixed size={15} />
-                          Use live location
+                          {clientLocation ? 'Update live location' : 'Use live location'}
                         </Button>
                         <p className="text-xs font-medium text-slate-600">
                           {clientLocation
-                            ? `${clientLocation.latitude.toFixed(5)}, ${clientLocation.longitude.toFixed(5)}`
-                            : 'Manual address will still work if GPS is unavailable.'}
+                            ? `${locationStatusLabel} - ${formatCoordinates(clientLocation)}`
+                            : 'Manual address works, or save location once in profile and update only when needed.'}
                         </p>
                       </div>
                     </div>
@@ -833,3 +854,4 @@ const BookingPage = () => {
 };
 
 export default BookingPage;
+

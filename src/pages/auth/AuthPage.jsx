@@ -1,7 +1,7 @@
-import { Phone, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, House, Phone, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { InputField } from '../../components/common/InputField';
@@ -20,6 +20,27 @@ const initialFormState = {
   password: '',
   role: ''
 };
+
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+    <path
+      fill="#EA4335"
+      d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.9 1.5l2.7-2.6C16.9 3.3 14.7 2.4 12 2.4A9.6 9.6 0 0 0 2.4 12 9.6 9.6 0 0 0 12 21.6c5.5 0 9.2-3.9 9.2-9.3 0-.6-.1-1.1-.2-1.6H12Z"
+    />
+    <path
+      fill="#34A853"
+      d="M2.4 7.6 5.6 10A6 6 0 0 1 12 6c1.9 0 3.1.8 3.9 1.5l2.7-2.6C16.9 3.3 14.7 2.4 12 2.4c-3.7 0-6.9 2.1-8.6 5.2Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M12 21.6c2.6 0 4.8-.9 6.4-2.4l-3-2.4c-.8.6-1.9 1.1-3.4 1.1-3.9 0-5.2-2.6-5.5-3.8L3.2 16.7A9.6 9.6 0 0 0 12 21.6Z"
+    />
+    <path
+      fill="#4285F4"
+      d="M21.2 12.3c0-.6-.1-1.1-.2-1.6H12v3.9h5.5c-.3 1.3-1.1 2.3-2.1 3.1l3 2.4c1.8-1.7 2.8-4.2 2.8-7.8Z"
+    />
+  </svg>
+);
 
 const AuthPage = () => {
   const location = useLocation();
@@ -51,6 +72,7 @@ const AuthPage = () => {
   const [otp, setOtp] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showOtpOptions, setShowOtpOptions] = useState(false);
 
   useEffect(() => {
     if (!loading && currentUser && !submitting) {
@@ -122,7 +144,7 @@ const AuthPage = () => {
             formValues.email.trim() &&
             formValues.password.trim()
         )
-      : Boolean(role && formValues.email.trim() && formValues.password.trim());
+      : Boolean(formValues.email.trim() && formValues.password.trim());
 
   const selectedRole = roles.find((item) => item.value === role);
   const roleDescriptions = {
@@ -155,6 +177,10 @@ const AuthPage = () => {
   };
 
   const requireRoleSelection = () => {
+    if (mode === 'login') {
+      return true;
+    }
+
     if (role) {
       return true;
     }
@@ -288,6 +314,7 @@ const AuthPage = () => {
 
     setSubmitting(true);
     try {
+      setShowOtpOptions(true);
       const result = await sendPhoneOtp(formValues.phoneNumber);
       setConfirmationResult(result);
       toast.success('OTP sent to your phone number.');
@@ -359,7 +386,7 @@ const AuthPage = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-slate-950">Step 1: choose role and login</h3>
                     <p className="mt-1 text-sm text-slate-600">
-                      Pick labour or client, then continue with email, Google, Apple, or phone OTP.
+                      New accounts choose labour or client first. Existing admin, labour, and client accounts can log in and WorkLink opens the right page automatically.
                     </p>
                   </div>
                 </div>
@@ -383,16 +410,28 @@ const AuthPage = () => {
           <Card className="rounded-[36px] p-6 md:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
+                <div className="mb-4">
+                  <Button as={Link} to="/" type="button" variant="outline" size="sm">
+                    <House size={15} />
+                    Home
+                  </Button>
+                </div>
                 <h2 className="text-3xl font-bold text-slate-950">
-                  {role ? `${selectedRole?.label} access` : 'Choose your WorkLink role'}
+                  {role
+                    ? `${selectedRole?.label} access`
+                    : mode === 'login'
+                      ? 'Sign in to WorkLink'
+                      : 'Choose your WorkLink role'}
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
                   {role
                     ? `Continue as ${selectedRole?.label}. After login, you will only see ${selectedRole?.label.toLowerCase()} features.`
-                    : 'Select Client or Labour first. Then we will show login and signup options for that role.'}
+                    : mode === 'login'
+                      ? 'Sign in with email, Google, Apple, or optional phone OTP. Hidden admin accounts will open the admin page automatically.'
+                      : 'Select Client or Labour first. Then we will show login and signup options for that role.'}
                 </p>
               </div>
-              {role ? (
+              {role || mode === 'login' ? (
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -418,7 +457,7 @@ const AuthPage = () => {
               </div>
             ) : null}
 
-            {!role ? (
+            {!role && mode !== 'login' ? (
               <div className="mt-8 grid gap-4 md:grid-cols-2">
                 {roles.map((item) => (
                   <div
@@ -444,7 +483,9 @@ const AuthPage = () => {
             ) : (
               <>
                 <div className="mt-6">
-                  <p className="text-sm font-semibold text-slate-900">Selected role</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {role ? 'Selected role' : 'Optional role shortcut'}
+                  </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {roles.map((item) => (
                       <Button
@@ -458,7 +499,9 @@ const AuthPage = () => {
                     ))}
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    {roleDescriptions[role]}
+                    {role
+                      ? roleDescriptions[role]
+                      : 'Existing accounts can sign in directly. Choose a role only when you want role-specific signup or a quicker path.'}
                   </p>
                 </div>
 
@@ -515,6 +558,7 @@ const AuthPage = () => {
                     onClick={handleGoogleAuth}
                     disabled={submitting}
                   >
+                    <GoogleIcon />
                     Continue with Google
                   </Button>
 
@@ -529,44 +573,58 @@ const AuthPage = () => {
                   </Button>
 
                   <div className="rounded-3xl border border-slate-200 p-4">
-                    <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                      <InputField
-                        label="Phone OTP login"
-                        value={formValues.phoneNumber}
-                        onChange={(event) => handleChange('phoneNumber', event.target.value)}
-                        placeholder="+91 98765 43210"
-                      />
-                      <div className="self-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full md:w-auto"
-                          onClick={handleSendOtp}
-                          disabled={submitting || !formValues.phoneNumber.trim()}
-                        >
-                          Send OTP
-                        </Button>
-                      </div>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full justify-between"
+                      onClick={() => setShowOtpOptions((prev) => !prev)}
+                    >
+                      <span>Phone OTP login (optional)</span>
+                      {showOtpOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </Button>
 
-                    {confirmationResult ? (
-                      <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
-                        <InputField
-                          label="Enter OTP"
-                          value={otp}
-                          onChange={(event) => setOtp(event.target.value)}
-                          placeholder="6 digit code"
-                        />
-                        <div className="self-end">
-                          <Button
-                            type="button"
-                            className="w-full md:w-auto"
-                            onClick={handleVerifyOtp}
-                            disabled={submitting || !otp.trim()}
-                          >
-                            Verify OTP
-                          </Button>
+                    {showOtpOptions || confirmationResult ? (
+                      <div className="mt-4">
+                        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+                          <InputField
+                            label="Phone OTP login"
+                            value={formValues.phoneNumber}
+                            onChange={(event) => handleChange('phoneNumber', event.target.value)}
+                            placeholder="+91 98765 43210"
+                          />
+                          <div className="self-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full md:w-auto"
+                              onClick={handleSendOtp}
+                              disabled={submitting || !formValues.phoneNumber.trim()}
+                            >
+                              Send OTP
+                            </Button>
+                          </div>
                         </div>
+
+                        {confirmationResult ? (
+                          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+                            <InputField
+                              label="Enter OTP"
+                              value={otp}
+                              onChange={(event) => setOtp(event.target.value)}
+                              placeholder="6 digit code"
+                            />
+                            <div className="self-end">
+                              <Button
+                                type="button"
+                                className="w-full md:w-auto"
+                                onClick={handleVerifyOtp}
+                                disabled={submitting || !otp.trim()}
+                              >
+                                Verify OTP
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     <div id="recaptcha-container" />

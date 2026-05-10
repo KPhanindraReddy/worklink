@@ -8,6 +8,7 @@ import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
+import { isHiddenAdminAccount } from '../../services/authService';
 import { getUserProfile } from '../../services/userService';
 import { isProfileComplete, resolvePostAuthPath } from '../../utils/authFlow';
 import { roles } from '../../utils/constants';
@@ -121,8 +122,17 @@ const AuthPage = () => {
 
   const ensureProfileRecord = async (user, { forceBaseWrite = false, fallbackRole = role } = {}) => {
     let profile = await getUserProfile(user.uid);
+    const shouldUpgradeHiddenAdmin =
+      isHiddenAdminAccount(
+        user,
+        {
+          email: formValues.email,
+          fullName: formValues.fullName
+        },
+        profile
+      ) && profile?.role !== 'admin';
 
-    if (!profile || (forceBaseWrite && !isProfileComplete(profile))) {
+    if (!profile || (forceBaseWrite && !isProfileComplete(profile)) || shouldUpgradeHiddenAdmin) {
       profile = await persistBaseProfile(user, fallbackRole);
     }
 
@@ -211,7 +221,11 @@ const AuthPage = () => {
           fallbackRole: role
         });
 
-        toast.success('Account created. Complete your profile on the next screen.');
+        toast.success(
+          profile?.role === 'admin'
+            ? 'Admin account created. Opening the admin page.'
+            : 'Account created. Complete your profile on the next screen.'
+        );
         await redirectAfterAuth(profile, role);
       } else {
         const user = await loginWithEmail({

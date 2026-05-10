@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, House, Phone, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, House } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -51,7 +51,8 @@ const getStoredFromLocation = (from) =>
   from?.pathname
     ? {
         pathname: from.pathname,
-        search: from.search ?? ''
+        search: from.search ?? '',
+        hash: from.hash ?? ''
       }
     : null;
 
@@ -121,7 +122,7 @@ const AuthPage = () => {
       from?.pathname &&
       !['/auth', '/complete-profile'].includes(from.pathname)
     ) {
-      navigate(`${from.pathname}${from.search ?? ''}`, { replace: true });
+      navigate(`${from.pathname}${from.search ?? ''}${from.hash ?? ''}`, { replace: true });
       return;
     }
 
@@ -151,7 +152,20 @@ const AuthPage = () => {
         profile
       ) && profile?.role !== 'admin';
 
-    if (!profile || (forceBaseWrite && !isProfileComplete(profile)) || shouldUpgradeHiddenAdmin) {
+    if (!profile) {
+      if (!fallbackRole && !shouldUpgradeHiddenAdmin) {
+        return null;
+      }
+
+      profile = await persistBaseProfile(user, fallbackRole);
+      return profile;
+    }
+
+    if (
+      shouldUpgradeHiddenAdmin ||
+      (fallbackRole && !profile.role) ||
+      (forceBaseWrite && fallbackRole && !isProfileComplete(profile))
+    ) {
       profile = await persistBaseProfile(user, fallbackRole);
     }
 
@@ -237,10 +251,6 @@ const AuthPage = () => {
       : Boolean(formValues.email.trim() && formValues.password.trim());
 
   const selectedRole = roles.find((item) => item.value === role);
-  const roleDescriptions = {
-    client: 'Search nearby labour, choose workers, and manage hiring history.',
-    labour: 'Receive customer requests, accept jobs, track earnings, and manage availability.'
-  };
 
   const updateAuthUrl = (nextRole = role, nextMode = mode) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -334,6 +344,7 @@ const AuthPage = () => {
   const handleGoogleAuth = async () => {
     if (
       !requireRoleSelection({
+        allowWithoutRole: mode === 'login',
         message: 'Choose Client or Labour before continuing with Google.'
       })
     ) {
@@ -376,6 +387,7 @@ const AuthPage = () => {
   const handleAppleAuth = async () => {
     if (
       !requireRoleSelection({
+        allowWithoutRole: mode === 'login',
         message: 'Choose Client or Labour before continuing with Apple.'
       })
     ) {
@@ -486,50 +498,9 @@ const AuthPage = () => {
       />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="surface-card overflow-hidden rounded-[36px] p-8 md:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700">
-              <Sparkles size={16} />
-              Fast access first
-            </div>
-            <h1 className="mt-6 font-display text-4xl font-bold text-slate-950 md:text-5xl">
-              Sign in first. Complete work details on the next screen.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-8 text-slate-600">
-              WorkLink now keeps labour and client profile details out of the login screen. Users authenticate first, then finish the information needed for hiring, booking, and trust.
-            </p>
-            <div className="mt-8 space-y-4">
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-brand-700 shadow-sm">
-                    <ShieldCheck size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-950">Step 1: choose role and login</h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      New accounts choose labour or client first. Existing admin, labour, and client accounts can log in and WorkLink opens the right page automatically.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-brand-700 shadow-sm">
-                    <Phone size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-950">Step 2: complete profile</h3>
-                    <p className="mt-1 text-sm text-slate-600">
-                      After access is granted, WorkLink opens a dedicated page for skills, location, wage, and client details.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Card className="rounded-[36px] p-6 md:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="page-shell max-w-3xl">
+          <Card className="rounded-[28px] p-6 md:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="mb-4">
                   <Button as={Link} to="/" type="button" variant="outline" size="sm">
@@ -538,38 +509,25 @@ const AuthPage = () => {
                   </Button>
                 </div>
                 <h2 className="text-3xl font-bold text-slate-950">
-                  {role
-                    ? `${selectedRole?.label} access`
-                    : mode === 'login'
-                      ? 'Sign in to WorkLink'
-                      : 'Choose your WorkLink role'}
+                  {role ? `${selectedRole?.label} ${mode}` : 'Continue to WorkLink'}
                 </h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  {role
-                    ? `Continue as ${selectedRole?.label}. After login, you will only see ${selectedRole?.label.toLowerCase()} features.`
-                    : mode === 'login'
-                      ? 'Sign in with email, Google, Apple, or optional phone OTP. Hidden admin accounts will open the admin page automatically.'
-                      : 'Select Client or Labour first. Then we will show login and signup options for that role.'}
-                </p>
               </div>
-              {role || mode === 'login' ? (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={mode === 'login' ? 'primary' : 'outline'}
-                    onClick={() => handleModeSelect('login')}
-                  >
-                    Login
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mode === 'signup' ? 'primary' : 'outline'}
-                    onClick={() => handleModeSelect('signup')}
-                  >
-                    Signup
-                  </Button>
-                </div>
-              ) : null}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={mode === 'login' ? 'primary' : 'outline'}
+                  onClick={() => handleModeSelect('login')}
+                >
+                  Login
+                </Button>
+                <Button
+                  type="button"
+                  variant={mode === 'signup' ? 'primary' : 'outline'}
+                  onClick={() => handleModeSelect('signup')}
+                >
+                  Signup
+                </Button>
+              </div>
             </div>
 
             {!isFirebaseConfigured ? (
@@ -578,54 +536,22 @@ const AuthPage = () => {
               </div>
             ) : null}
 
-            {!role && mode !== 'login' ? (
-              <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {!role ? (
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {roles.map((item) => (
-                  <div
+                  <Button
                     key={item.value}
-                    className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                    type="button"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => handleRoleSelect(item.value)}
                   >
-                    <p className="text-lg font-semibold text-slate-950">
-                      Continue as {item.label}
-                    </p>
-                    <p className="mt-3 min-h-14 text-sm leading-6 text-slate-600">
-                      {roleDescriptions[item.value]}
-                    </p>
-                    <Button
-                      type="button"
-                      className="mt-5 w-full"
-                      onClick={() => handleRoleSelect(item.value)}
-                    >
-                      Select {item.label}
-                    </Button>
-                  </div>
+                    Continue with {item.label}
+                  </Button>
                 ))}
               </div>
             ) : (
               <>
-                <div className="mt-6">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {role ? 'Selected role' : 'Optional role shortcut'}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {roles.map((item) => (
-                      <Button
-                        key={item.value}
-                        type="button"
-                        variant={role === item.value ? 'primary' : 'outline'}
-                        onClick={() => handleRoleSelect(item.value)}
-                      >
-                        {item.label}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">
-                    {role
-                      ? roleDescriptions[role]
-                      : 'Existing accounts can sign in directly. Choose a role only when you want role-specific signup or a quicker path.'}
-                  </p>
-                </div>
-
                 <form className="mt-8 space-y-4" onSubmit={handleEmailAuth}>
                   <div className="grid gap-4 md:grid-cols-2">
                     {mode === 'signup' ? (

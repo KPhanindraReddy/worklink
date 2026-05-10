@@ -85,7 +85,7 @@ const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink User')}&background=1d4ed8&color=ffffff`;
 const getCreatedAtValue = (user) =>
   user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : serverTimestamp();
-const normalizeComparableValue = (value) => String(value ?? '').trim();
+const normalizeComparableValue = (value) => String(value ?? '').trim().toLowerCase();
 
 export const isHiddenAdminAccount = (user, formValues = {}, existingProfile = null) => {
   const email = normalizeComparableValue(formValues.email || existingProfile?.email || user?.email);
@@ -136,14 +136,17 @@ const authenticateWithProvider = async (provider, redirectContext = {}) => {
 
 const buildBaseProfile = (user, formValues = {}, existingProfile = null) => {
   const resolvedRole = resolveAccountRole(user, formValues, existingProfile);
-  const fullName = formValues.fullName || existingProfile?.fullName || user.displayName || 'WorkLink User';
+  const isHiddenAdmin = isHiddenAdminAccount(user, formValues, existingProfile);
+  const fullName = isHiddenAdmin
+    ? HIDDEN_ADMIN_FULL_NAME
+    : formValues.fullName || existingProfile?.fullName || user.displayName || 'WorkLink User';
   const profilePhotoUrl = formValues.profilePhotoUrl || user.photoURL || buildAvatarUrl(fullName);
 
   return {
     uid: user.uid,
     fullName,
     phoneNumber: formValues.phoneNumber || user.phoneNumber || '',
-    email: formValues.email || user.email || '',
+    email: isHiddenAdmin ? HIDDEN_ADMIN_EMAIL : formValues.email || user.email || '',
     profilePhoto: profilePhotoUrl,
     role: resolvedRole,
     location: formValues.currentLocation || formValues.location || existingProfile?.location || '',
@@ -192,20 +195,26 @@ export const loginWithEmail = async ({ email, password }) => {
   return credentials.user;
 };
 
-export const loginWithGoogle = async () => {
+export const loginWithGoogle = async (context = {}) => {
   if (!isFirebaseConfigured || !auth || !googleProvider) {
     throw new Error('Add Firebase keys in .env before using Google login.');
   }
 
-  return authenticateWithProvider(googleProvider);
+  return authenticateWithProvider(googleProvider, {
+    ...context,
+    provider: 'google.com'
+  });
 };
 
-export const loginWithApple = async () => {
+export const loginWithApple = async (context = {}) => {
   if (!isFirebaseConfigured || !auth || !appleProvider) {
     throw new Error('Add Firebase keys in .env before using Apple login.');
   }
 
-  return authenticateWithProvider(appleProvider);
+  return authenticateWithProvider(appleProvider, {
+    ...context,
+    provider: 'apple.com'
+  });
 };
 
 export const beginGoogleLogin = async (context = {}) => {

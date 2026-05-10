@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { getPendingRedirectContext } from '../../services/authService';
 
+const isAuthResumePath = (path) =>
+  path === '/auth' || path.startsWith('/auth?') || path.startsWith('/auth#');
+
 const buildAuthResumePath = (context = {}) => {
-  if (typeof context.resumePath === 'string' && context.resumePath.startsWith('/')) {
+  if (typeof context.resumePath === 'string' && isAuthResumePath(context.resumePath)) {
     return context.resumePath;
   }
 
@@ -25,13 +27,8 @@ const buildAuthResumePath = (context = {}) => {
 export const OAuthRedirectBridge = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { loading } = useAuth();
 
   useEffect(() => {
-    if (loading) {
-      return;
-    }
-
     const pendingContext = getPendingRedirectContext();
 
     if (!pendingContext || location.pathname === '/auth') {
@@ -46,7 +43,7 @@ export const OAuthRedirectBridge = () => {
     }
 
     navigate(expectedPath, { replace: true });
-  }, [loading, location.hash, location.pathname, location.search, navigate]);
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   return null;
 };

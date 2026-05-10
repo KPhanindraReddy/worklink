@@ -18,9 +18,7 @@ const HIDDEN_ADMIN_EMAIL = 'admin@gmail.com';
 const HIDDEN_ADMIN_FULL_NAME = 'admin';
 const OAUTH_REDIRECT_CONTEXT_KEY = 'worklink.oauth.redirect';
 
-const shouldUseRedirectAuth = () =>
-  typeof window !== 'undefined' &&
-  !['localhost', '127.0.0.1'].includes(window.location.hostname);
+const shouldUseRedirectAuth = () => false;
 const getSessionStorage = () => {
   if (typeof window === 'undefined') {
     return null;

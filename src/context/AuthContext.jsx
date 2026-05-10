@@ -2,11 +2,12 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
 import {
+  beginAppleLogin,
+  beginGoogleLogin,
+  consumeRedirectAuthResult,
   createBaseUserProfile,
   createOrUpdateUserProfile,
-  loginWithApple,
   loginWithEmail,
-  loginWithGoogle,
   logoutUser,
   registerWithEmail,
   sendPhoneOtp,
@@ -84,11 +85,12 @@ export const AuthProvider = ({ children }) => {
       loading,
       isFirebaseConfigured,
       loginWithEmail,
-      loginWithGoogle,
-      loginWithApple,
+      loginWithGoogle: beginGoogleLogin,
+      loginWithApple: beginAppleLogin,
       registerWithEmail,
       sendPhoneOtp,
       verifyPhoneOtp,
+      consumeRedirectAuthResult,
       createBaseUserProfile: async (...args) => {
         const profile = await createBaseUserProfile(...args);
         await refreshProfile();

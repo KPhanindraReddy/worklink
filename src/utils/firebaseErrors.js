@@ -6,7 +6,15 @@ const errorCodeMap = {
   'auth/popup-closed-by-user': 'The Google login popup was closed before finishing.',
   'auth/popup-blocked': 'The login popup was blocked by the browser. Allow popups for this site and try again.',
   'auth/cancelled-popup-request': 'Another login popup replaced the previous one. Try again once.',
+  'auth/account-exists-with-different-credential':
+    'This email already belongs to another sign-in method. Use that method first, then connect Google later.',
+  'auth/operation-not-allowed':
+    'This login method is not enabled in Firebase Authentication yet.',
+  'auth/operation-not-supported-in-this-environment':
+    'This browser blocked the popup flow. WorkLink will switch to a redirect-based login instead.',
   'auth/too-many-requests': 'Too many attempts were detected. Please wait and try again.',
+  'auth/unauthorized-domain':
+    'This domain is not approved in Firebase Authentication. Add it to the authorized domains list and try again.',
   'auth/invalid-verification-code': 'The OTP code is invalid. Please check and retry.',
   'auth/missing-phone-number': 'Add a valid phone number with country code.',
   'failed-precondition':

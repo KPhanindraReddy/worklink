@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, House, Phone, ShieldCheck, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
@@ -20,6 +20,10 @@ const initialFormState = {
   email: '',
   password: '',
   role: ''
+};
+const providerNames = {
+  'google.com': 'Google',
+  'apple.com': 'Apple'
 };
 
 const GoogleIcon = () => (
@@ -61,6 +65,7 @@ const AuthPage = () => {
     loginWithGoogle,
     sendPhoneOtp,
     verifyPhoneOtp,
+    consumeRedirectAuthResult,
     createBaseUserProfile
   } = useAuth();
 
@@ -74,14 +79,16 @@ const AuthPage = () => {
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showOtpOptions, setShowOtpOptions] = useState(false);
+  const [processingRedirectAuth, setProcessingRedirectAuth] = useState(true);
+  const hasProcessedRedirectRef = useRef(false);
 
   useEffect(() => {
-    if (!loading && currentUser && !submitting) {
+    if (!loading && !processingRedirectAuth && currentUser && !submitting) {
       navigate(resolvePostAuthPath({ profile: userProfile, fallbackRole: role }), {
         replace: true
       });
     }
-  }, [currentUser, loading, navigate, role, submitting, userProfile]);
+  }, [currentUser, loading, navigate, processingRedirectAuth, role, submitting, userProfile]);
 
   useEffect(() => {
     if (queryMode === 'login' || queryMode === 'signup') {
@@ -138,6 +145,67 @@ const AuthPage = () => {
 
     return profile;
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resumeRedirectAuth = async () => {
+      if (hasProcessedRedirectRef.current) {
+        return;
+      }
+
+      hasProcessedRedirectRef.current = true;
+
+      if (!isFirebaseConfigured) {
+        if (isMounted) {
+          setProcessingRedirectAuth(false);
+        }
+        return;
+      }
+
+      try {
+        const redirectResult = await consumeRedirectAuthResult();
+
+        if (!redirectResult?.user || !isMounted) {
+          return;
+        }
+
+        setSubmitting(true);
+
+        const fallbackRole = redirectResult.context?.role || role;
+        const redirectMode = redirectResult.context?.mode || mode;
+        const profile = await ensureProfileRecord(redirectResult.user, {
+          forceBaseWrite: redirectMode === 'signup',
+          fallbackRole
+        });
+        const providerName = providerNames[redirectResult.providerId] || 'Social';
+
+        toast.success(
+          redirectMode === 'signup'
+            ? `${providerName} sign up complete. Finish your profile on the next screen.`
+            : isProfileComplete(profile)
+              ? `${providerName} login complete.`
+              : `${providerName} login complete. Finish your profile to continue.`
+        );
+        await redirectAfterAuth(profile, fallbackRole);
+      } catch (error) {
+        if (isMounted) {
+          toast.error(getFirebaseErrorMessage(error));
+        }
+      } finally {
+        if (isMounted) {
+          setSubmitting(false);
+          setProcessingRedirectAuth(false);
+        }
+      }
+    };
+
+    resumeRedirectAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleChange = (key, value) =>
     setFormValues((prev) => ({
@@ -256,7 +324,7 @@ const AuthPage = () => {
     setSubmitting(true);
 
     try {
-      const user = await loginWithGoogle();
+      const user = await loginWithGoogle({ mode, role });
 
       if (!user) {
         return;
@@ -290,7 +358,7 @@ const AuthPage = () => {
     setSubmitting(true);
 
     try {
-      const user = await loginWithApple();
+      const user = await loginWithApple({ mode, role });
 
       if (!user) {
         return;

@@ -1,6 +1,7 @@
 import {
   RecaptchaVerifier,
   createUserWithEmailAndPassword,
+  getRedirectResult,
   signInWithRedirect,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
@@ -15,10 +16,63 @@ import { normalizeCoordinates } from '../utils/location';
 let recaptchaVerifier = null;
 const HIDDEN_ADMIN_EMAIL = 'admin@gmail.com';
 const HIDDEN_ADMIN_FULL_NAME = 'admin';
+const OAUTH_REDIRECT_CONTEXT_KEY = 'worklink.oauth.redirect';
 
 const shouldUseRedirectAuth = () =>
   typeof window !== 'undefined' &&
   !['localhost', '127.0.0.1'].includes(window.location.hostname);
+const getSessionStorage = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage;
+  } catch (error) {
+    return null;
+  }
+};
+const storeRedirectContext = (context) => {
+  const storage = getSessionStorage();
+
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(OAUTH_REDIRECT_CONTEXT_KEY, JSON.stringify(context));
+  } catch (error) {
+    console.warn('WorkLink OAuth redirect context could not be stored:', error);
+  }
+};
+const readRedirectContext = () => {
+  const storage = getSessionStorage();
+
+  if (!storage) {
+    return null;
+  }
+
+  try {
+    const rawValue = storage.getItem(OAUTH_REDIRECT_CONTEXT_KEY);
+    return rawValue ? JSON.parse(rawValue) : null;
+  } catch (error) {
+    console.warn('WorkLink OAuth redirect context could not be restored:', error);
+    return null;
+  }
+};
+const clearRedirectContext = () => {
+  const storage = getSessionStorage();
+
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.removeItem(OAUTH_REDIRECT_CONTEXT_KEY);
+  } catch (error) {
+    console.warn('WorkLink OAuth redirect context could not be cleared:', error);
+  }
+};
 const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink User')}&background=1d4ed8&color=ffffff`;
 const getCreatedAtValue = (user) =>
@@ -42,14 +96,31 @@ const resolveAccountRole = (user, formValues = {}, existingProfile = null) => {
   return existingProfile?.role || formValues.role || '';
 };
 
-const authenticateWithProvider = async (provider) => {
+const startRedirectAuthentication = async (provider, redirectContext) => {
+  storeRedirectContext(redirectContext);
+  await signInWithRedirect(auth, provider);
+  return null;
+};
+
+const authenticateWithProvider = async (provider, redirectContext = {}) => {
   if (shouldUseRedirectAuth()) {
-    await signInWithRedirect(auth, provider);
-    return null;
+    return startRedirectAuthentication(provider, redirectContext);
   }
 
-  const credentials = await signInWithPopup(auth, provider);
-  return credentials.user;
+  try {
+    const credentials = await signInWithPopup(auth, provider);
+    clearRedirectContext();
+    return credentials.user;
+  } catch (error) {
+    if (
+      error?.code === 'auth/popup-blocked' ||
+      error?.code === 'auth/operation-not-supported-in-this-environment'
+    ) {
+      return startRedirectAuthentication(provider, redirectContext);
+    }
+
+    throw error;
+  }
 };
 
 const buildBaseProfile = (user, formValues = {}, existingProfile = null) => {
@@ -124,6 +195,58 @@ export const loginWithApple = async () => {
   }
 
   return authenticateWithProvider(appleProvider);
+};
+
+export const beginGoogleLogin = async (context = {}) => {
+  if (!isFirebaseConfigured || !auth || !googleProvider) {
+    throw new Error('Add Firebase keys in .env before using Google login.');
+  }
+
+  return authenticateWithProvider(googleProvider, {
+    ...context,
+    provider: 'google.com'
+  });
+};
+
+export const beginAppleLogin = async (context = {}) => {
+  if (!isFirebaseConfigured || !auth || !appleProvider) {
+    throw new Error('Add Firebase keys in .env before using Apple login.');
+  }
+
+  return authenticateWithProvider(appleProvider, {
+    ...context,
+    provider: 'apple.com'
+  });
+};
+
+export const consumeRedirectAuthResult = async () => {
+  if (!auth) {
+    return null;
+  }
+
+  const redirectContext = readRedirectContext();
+
+  try {
+    const credentials = await getRedirectResult(auth);
+
+    if (!credentials?.user) {
+      return null;
+    }
+
+    const providerId =
+      credentials.providerId ||
+      credentials.user.providerData.find((provider) => provider?.providerId)?.providerId ||
+      redirectContext?.provider ||
+      '';
+
+    return {
+      context: redirectContext,
+      providerId,
+      user: credentials.user
+    };
+  } finally {
+    clearRedirectContext();
+  }
 };
 
 export const sendPhoneOtp = async (phoneNumber) => {

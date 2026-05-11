@@ -1,14 +1,9 @@
 import {
-  Bell,
   CalendarClock,
-  IndianRupee,
-  LayoutDashboard,
   MapPinned,
   MessageCircle,
   Navigation,
   Phone,
-  Settings,
-  Star,
   WalletCards
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,7 +15,6 @@ import { Card } from '../../components/common/Card';
 import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { Skeleton } from '../../components/common/Skeleton';
-import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { AppShell } from '../../components/layout/AppShell';
 import { AvailabilityToggle } from '../../components/dashboard/AvailabilityToggle';
 import { MetricsGrid } from '../../components/dashboard/MetricsGrid';
@@ -37,14 +31,6 @@ import { createNotification } from '../../services/notificationService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 import { formatCoordinates, getLocationLabel } from '../../utils/location';
-
-const sidebarItems = [
-  { to: '/labour/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { to: '/recent-services', label: 'Jobs', icon: MapPinned },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/notifications', label: 'Alerts', icon: Bell },
-  { to: '/settings', label: 'Settings', icon: Settings }
-];
 
 const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink Labour')}&background=1d4ed8&color=ffffff`;
@@ -218,14 +204,13 @@ const LabourDashboardPage = () => {
       .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     return [
-      { label: 'Completed jobs', value: completedJobs, hint: 'Across all recorded work history' },
-      { label: 'Pending requests', value: pendingRequests, hint: 'Awaiting your response' },
+      { label: 'Completed jobs', value: completedJobs },
+      { label: 'Pending requests', value: pendingRequests },
       {
         label: 'Average rating',
-        value: dashboardProfile.rating,
-        hint: `${dashboardProfile.reviewsCount} total reviews`
+        value: dashboardProfile.rating
       },
-      { label: 'Tracked earnings', value: formatCurrency(earnings), hint: 'Accepted and completed bookings' }
+      { label: 'Tracked earnings', value: formatCurrency(earnings) }
     ];
   }, [bookings, dashboardProfile]);
 
@@ -243,18 +228,15 @@ const LabourDashboardPage = () => {
     return [
       {
         label: 'Pending request value',
-        value: formatCurrency(pendingAmount),
-        hint: 'Customer requests waiting for your decision'
+        value: formatCurrency(pendingAmount)
       },
       {
         label: 'Accepted work value',
-        value: formatCurrency(acceptedAmount),
-        hint: 'Money expected from accepted bookings'
+        value: formatCurrency(acceptedAmount)
       },
       {
         label: 'Completed earnings',
-        value: formatCurrency(completedAmount),
-        hint: 'Finished work recorded in WorkLink'
+        value: formatCurrency(completedAmount)
       }
     ];
   }, [bookings]);
@@ -475,9 +457,7 @@ const LabourDashboardPage = () => {
         <PageSEO title="Labour Dashboard" description="Manage your labour profile, availability, bookings, work history, and earnings." />
 
         <section className="section-space">
-          <div className="page-shell grid gap-6 xl:grid-cols-[280px_1fr]">
-            <DashboardSidebar items={sidebarItems} />
-
+          <div className="page-shell">
             <div className="space-y-6">
               <Card className="overflow-hidden rounded-[28px]">
                 <Skeleton className="h-8 w-48" />
@@ -506,9 +486,7 @@ const LabourDashboardPage = () => {
       <PageSEO title="Labour Dashboard" description="Manage your labour profile, availability, bookings, work history, and earnings." />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[280px_1fr]">
-          <DashboardSidebar items={sidebarItems} />
-
+        <div className="page-shell">
           <div className="space-y-6">
             {dashboardLoading ? (
               <Card className="overflow-hidden rounded-[28px]">
@@ -551,47 +529,22 @@ const LabourDashboardPage = () => {
 
             <MetricsGrid items={metrics} />
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-              <Card>
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Availability</h2>
-                  </div>
-                  <Badge tone={dashboardProfile.availability === 'Available' ? 'emerald' : 'amber'}>
-                    {updatingAvailability ? 'Updating...' : dashboardProfile.availability}
-                  </Badge>
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Availability</h2>
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
+                    Keep this updated so clients only see workers who can take requests.
+                  </p>
                 </div>
-                <div className="mt-5">
-                  <AvailabilityToggle value={dashboardProfile.availability} onChange={handleAvailabilityChange} />
-                </div>
-              </Card>
-
-              <Card>
-                <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Quick summary</h2>
-                <div className="mt-5 grid gap-4 text-sm text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-3">
-                    <Star size={16} className="text-amber-500" />
-                    {dashboardProfile.rating} average rating
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <WalletCards size={16} className="text-brand-600" />
-                    {formatCurrency(dashboardProfile.dailyWage)}/day expected wage
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CalendarClock size={16} className="text-brand-600" />
-                    {bookings.filter((item) => item.status === 'accepted').length} accepted bookings
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MapPinned size={16} className="text-emerald-600" />
-                    {inProgressBooking ? 'Busy on active work' : 'Ready for OTP start'}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <IndianRupee size={16} className="text-emerald-600" />
-                    {dashboardProfile.completedJobs} lifetime completed jobs
-                  </div>
-                </div>
-              </Card>
-            </div>
+                <Badge tone={dashboardProfile.availability === 'Available' ? 'emerald' : 'amber'}>
+                  {updatingAvailability ? 'Updating...' : dashboardProfile.availability}
+                </Badge>
+              </div>
+              <div className="mt-5">
+                <AvailabilityToggle value={dashboardProfile.availability} onChange={handleAvailabilityChange} />
+              </div>
+            </Card>
 
             {activeWorkBookings.length ? (
               <Card>
@@ -813,7 +766,6 @@ const LabourDashboardPage = () => {
                     <div key={item.label} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
                       <p className="text-sm text-slate-500 dark:text-slate-400">{item.label}</p>
                       <p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{item.value}</p>
-                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.hint}</p>
                     </div>
                   ))}
                 </div>

@@ -1,4 +1,4 @@
-import { History } from 'lucide-react';
+import { History, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,9 +8,11 @@ import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
 import { PageSEO } from '../../components/common/PageSEO';
 import { Skeleton } from '../../components/common/Skeleton';
+import { TextAreaField } from '../../components/common/TextAreaField';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeBookingsForUser } from '../../services/bookingService';
+import { submitServiceReview } from '../../services/reviewService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 
@@ -27,6 +29,10 @@ const getStatusTone = (status) => {
     return 'rose';
   }
 
+  if (status === 'timed_out') {
+    return 'slate';
+  }
+
   return 'amber';
 };
 
@@ -39,6 +45,8 @@ const RecentServicesPage = () => {
   const { currentUser, userProfile } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [reviewDrafts, setReviewDrafts] = useState({});
+  const [submittingReviewId, setSubmittingReviewId] = useState('');
   const role = userProfile?.role === 'labour' ? 'labour' : 'client';
   const subjectLabel = role === 'labour' ? 'Client' : 'Worker';
 
@@ -79,11 +87,51 @@ const RecentServicesPage = () => {
       },
       {
         label: 'Declined',
-        value: bookings.filter((item) => ['rejected', 'cancelled'].includes(item.status)).length
+        value: bookings.filter((item) => ['rejected', 'cancelled', 'timed_out'].includes(item.status)).length
       }
     ],
     [bookings]
   );
+
+  const updateReviewDraft = (bookingId, key, value) =>
+    setReviewDrafts((prev) => ({
+      ...prev,
+      [bookingId]: {
+        ...(prev[bookingId] ?? {}),
+        [key]: value
+      }
+    }));
+
+  const handleSubmitReview = async (booking) => {
+    const draft = reviewDrafts[booking.id] ?? {};
+
+    if (!draft.rating) {
+      toast.error('Choose a star rating before submitting.');
+      return;
+    }
+
+    setSubmittingReviewId(booking.id);
+
+    try {
+      await submitServiceReview({
+        bookingId: booking.id,
+        clientId: currentUser.uid,
+        clientName: userProfile?.fullName,
+        rating: draft.rating,
+        comment: draft.comment
+      });
+      setReviewDrafts((prev) => {
+        const next = { ...prev };
+        delete next[booking.id];
+        return next;
+      });
+      toast.success('Thanks for rating this service.');
+    } catch (error) {
+      toast.error(getFirebaseErrorMessage(error));
+    } finally {
+      setSubmittingReviewId('');
+    }
+  };
 
   return (
     <AppShell>
@@ -103,7 +151,7 @@ const RecentServicesPage = () => {
                 <div>
                   <h1 className="text-xl font-semibold text-slate-950">Recent services</h1>
                   <p className="text-[13px] text-slate-500">
-                    New, accepted, completed, and declined service updates in one place.
+                    Track service requests and completed work.
                   </p>
                 </div>
               </div>
@@ -162,6 +210,72 @@ const RecentServicesPage = () => {
                       </p>
                       <p className="mt-2 text-lg font-bold text-slate-950">{booking.startOtp}</p>
                     </div>
+                  ) : null}
+
+                  {role === 'client' && booking.status === 'completed' ? (
+                    booking.reviewRating ? (
+                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-amber-800">
+                          {Array.from({ length: 5 }).map((_, index) => (
+                            <Star
+                              key={index}
+                              size={16}
+                              fill={index < Number(booking.reviewRating) ? 'currentColor' : 'none'}
+                            />
+                          ))}
+                          Rated {booking.reviewRating}/5
+                        </div>
+                        {booking.reviewComment ? (
+                          <p className="mt-2 text-[13px] leading-6 text-amber-950">
+                            {booking.reviewComment}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-slate-950">Rate this service</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {Array.from({ length: 5 }).map((_, index) => {
+                            const value = index + 1;
+                            const selected = Number(reviewDrafts[booking.id]?.rating ?? 0) >= value;
+
+                            return (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => updateReviewDraft(booking.id, 'rating', value)}
+                                className={`grid h-10 w-10 place-items-center rounded-xl border transition ${
+                                  selected
+                                    ? 'border-amber-300 bg-amber-100 text-amber-600'
+                                    : 'border-slate-200 bg-white text-slate-400 hover:border-amber-200 hover:text-amber-500'
+                                }`}
+                                aria-label={`Rate ${value} star${value === 1 ? '' : 's'}`}
+                              >
+                                <Star size={18} fill={selected ? 'currentColor' : 'none'} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <TextAreaField
+                          label="Review"
+                          value={reviewDrafts[booking.id]?.comment ?? ''}
+                          onChange={(event) =>
+                            updateReviewDraft(booking.id, 'comment', event.target.value)
+                          }
+                          placeholder="Share a short note about the service."
+                          className="mt-3"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="mt-3"
+                          disabled={submittingReviewId === booking.id}
+                          onClick={() => handleSubmitReview(booking)}
+                        >
+                          {submittingReviewId === booking.id ? 'Submitting...' : 'Submit rating'}
+                        </Button>
+                      </div>
+                    )
                   ) : null}
                 </Card>
               ))}

@@ -1,13 +1,4 @@
-import {
-  Bell,
-  Heart,
-  History,
-  LayoutDashboard,
-  MessageCircle,
-  Search,
-  Settings,
-  Sparkles
-} from 'lucide-react';
+import { MessageCircle, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -16,26 +7,18 @@ import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog'
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { EmptyState } from '../../components/common/EmptyState';
 import { PageSEO } from '../../components/common/PageSEO';
+import { SelectField } from '../../components/common/SelectField';
 import { Skeleton } from '../../components/common/Skeleton';
-import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { AppShell } from '../../components/layout/AppShell';
 import { MetricsGrid } from '../../components/dashboard/MetricsGrid';
 import { useAuth } from '../../context/AuthContext';
-import { fetchFeaturedLabours } from '../../services/labourService';
+import { searchLabours } from '../../services/labourService';
 import { subscribeBookingsForUser } from '../../services/bookingService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
-import { getLocationLabel } from '../../utils/location';
-
-const sidebarItems = [
-  { to: '/client/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { to: '/search', label: 'Search Service', icon: Search },
-  { to: '/recent-services', label: 'Recent services', icon: History },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/notifications', label: 'Alerts', icon: Bell },
-  { to: '/settings', label: 'Settings', icon: Settings }
-];
+import { getLocationLabel, normalizeCoordinates } from '../../utils/location';
 
 const getBookingTone = (status) => {
   if (status === 'accepted') {
@@ -44,6 +27,10 @@ const getBookingTone = (status) => {
 
   if (status === 'rejected') {
     return 'rose';
+  }
+
+  if (status === 'timed_out') {
+    return 'slate';
   }
 
   if (status === 'completed') {
@@ -55,37 +42,24 @@ const getBookingTone = (status) => {
 
 const ClientDashboardPage = () => {
   const { currentUser, userProfile } = useAuth();
-  const [featuredLabours, setFeaturedLabours] = useState([]);
-  const [featuredLaboursLoading, setFeaturedLaboursLoading] = useState(true);
+  const [nearbyLabours, setNearbyLabours] = useState([]);
+  const [nearbyLaboursLoading, setNearbyLaboursLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [quickBookState, setQuickBookState] = useState(null);
+  const [selectedService, setSelectedService] = useState('');
+  const clientOrigin = useMemo(
+    () => normalizeCoordinates(userProfile?.coordinates) || null,
+    [userProfile?.coordinates]
+  );
 
   useEffect(() => {
-    setFeaturedLaboursLoading(true);
-    fetchFeaturedLabours(6)
-      .then((items) => {
-        const prioritized = [...items].sort((a, b) => {
-          if (a.availability === b.availability) {
-            return Number(b.rating || 0) - Number(a.rating || 0);
-          }
-
-          if (a.availability === 'Available') {
-            return -1;
-          }
-
-          if (b.availability === 'Available') {
-            return 1;
-          }
-
-          return Number(b.rating || 0) - Number(a.rating || 0);
-        });
-
-        setFeaturedLabours(prioritized.slice(0, 4));
-      })
+    setNearbyLaboursLoading(true);
+    searchLabours({ availability: 'Available' }, clientOrigin)
+      .then((items) => setNearbyLabours(items))
       .catch((error) => toast.error(getFirebaseErrorMessage(error)))
-      .finally(() => setFeaturedLaboursLoading(false));
-  }, []);
+      .finally(() => setNearbyLaboursLoading(false));
+  }, [clientOrigin]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -108,26 +82,40 @@ const ClientDashboardPage = () => {
     );
   }, [currentUser?.uid]);
 
+  const serviceOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(nearbyLabours.map((labour) => labour.category).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [nearbyLabours]
+  );
+  const filteredNearbyLabours = useMemo(
+    () =>
+      selectedService
+        ? nearbyLabours.filter((labour) => labour.category === selectedService)
+        : nearbyLabours,
+    [nearbyLabours, selectedService]
+  );
   const metrics = useMemo(() => {
     const completed = bookings.filter((item) => item.status === 'completed').length;
     const active = bookings.filter((item) => ['pending', 'accepted'].includes(item.status)).length;
     const spend = bookings.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     return [
-      { label: 'Active bookings', value: active, hint: 'Pending or accepted appointments' },
-      { label: 'Completed hires', value: completed, hint: 'Marked as finished jobs' },
-      { label: 'Saved favourites', value: featuredLabours.slice(0, 2).length, hint: 'Starter shortlist' },
-      { label: 'Budgeted spend', value: formatCurrency(spend), hint: 'Money planned across requests' }
+      { label: 'Active bookings', value: active },
+      { label: 'Completed services', value: completed },
+      { label: 'Available services', value: serviceOptions.length },
+      { label: 'Budgeted spend', value: formatCurrency(spend) }
     ];
-  }, [bookings, featuredLabours]);
-  const metricsLoading = bookingsLoading || featuredLaboursLoading;
+  }, [bookings, serviceOptions.length]);
+  const metricsLoading = bookingsLoading || nearbyLaboursLoading;
   const trackedBookings = useMemo(() => bookings.slice(0, 4), [bookings]);
   const quickBookDefaults = useMemo(
     () => ({
       defaultService: quickBookState?.labour?.category || '',
-      defaultBudget: quickBookState?.labour?.dailyWage || ''
+      defaultBudget: ''
     }),
-    [quickBookState?.labour?.category, quickBookState?.labour?.dailyWage]
+    [quickBookState?.labour?.category]
   );
   const clientLocationLabel = useMemo(
     () => getLocationLabel(userProfile, { fallback: 'Location not added' }),
@@ -143,9 +131,7 @@ const ClientDashboardPage = () => {
       <PageSEO title="Client Dashboard" description="Search labour, manage bookings, track hiring history, and connect with verified workers." />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[280px_1fr]">
-          <DashboardSidebar items={sidebarItems} />
-
+        <div className="page-shell">
           <div className="space-y-6">
             <Card className="overflow-hidden rounded-[36px]">
               <div className="grid gap-6 p-6 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -177,36 +163,33 @@ const ClientDashboardPage = () => {
               <Card>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Quick actions</h2>
+                    <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+                      Services near your location
+                    </h2>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                      Choose from services that currently have available workers.
+                    </p>
                   </div>
-                  <Badge tone="blue">Fast access</Badge>
+                  <Badge tone={serviceOptions.length ? 'emerald' : 'slate'}>
+                    {nearbyLaboursLoading ? 'Checking' : `${serviceOptions.length} available`}
+                  </Badge>
                 </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  <Link
-                    to="/search"
-                    className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
-                  >
-                    <Search size={18} className="text-brand-600" />
-                    <p className="mt-3 font-semibold text-slate-950">Search Service</p>
-                    <p className="mt-1 text-sm text-slate-500">Browse available labour</p>
-                  </Link>
-                  <Link
-                    to="/chat"
-                    className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
-                  >
-                    <MessageCircle size={18} className="text-brand-600" />
-                    <p className="mt-3 font-semibold text-slate-950">Chat</p>
-                    <p className="mt-1 text-sm text-slate-500">Open conversations</p>
-                  </Link>
-                  <Link
-                    to="/notifications"
-                    className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-brand-200 hover:bg-brand-50/70"
-                  >
-                    <Bell size={18} className="text-brand-600" />
-                    <p className="mt-3 font-semibold text-slate-950">Alerts</p>
-                    <p className="mt-1 text-sm text-slate-500">View latest updates</p>
-                  </Link>
-                </div>
+                {nearbyLaboursLoading ? (
+                  <Skeleton className="mt-5 h-12 w-full" />
+                ) : serviceOptions.length ? (
+                  <SelectField
+                    label="Available service"
+                    placeholder="All available services"
+                    options={serviceOptions}
+                    value={selectedService}
+                    className="mt-5"
+                    onChange={(event) => setSelectedService(event.target.value)}
+                  />
+                ) : (
+                  <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm font-medium text-slate-600">
+                    No service available in your area right now.
+                  </div>
+                )}
               </Card>
 
               <Card>
@@ -273,52 +256,51 @@ const ClientDashboardPage = () => {
               </Card>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-              <Card>
-                <div className="flex items-center gap-2">
-                  <Sparkles size={18} className="text-brand-600" />
-                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Recommended labour</h2>
+            <div>
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+                    {selectedService ? `${selectedService} workers` : 'Available workers nearby'}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                    {clientOrigin
+                      ? 'Sorted with your saved location when worker GPS is available.'
+                      : 'Add GPS in profile to improve nearby matching.'}
+                  </p>
                 </div>
-                <div className="mt-6 grid gap-5 lg:grid-cols-2">
-                  {featuredLabours.map((labour) => (
-                    <LabourCard key={labour.id} labour={labour} onQuickBook={handleQuickBook} />
-                  ))}
-                </div>
-              </Card>
-
-              <Card>
-                <div className="flex items-center gap-2">
-                  <Heart size={18} className="text-rose-500" />
-                  <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Shortlist</h2>
-                </div>
-                <div className="mt-5 space-y-4">
-                  {featuredLabours.slice(0, 3).map((labour) => (
-                    <div key={labour.id} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-950 dark:text-white">{labour.fullName}</p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{labour.category}</p>
-                        </div>
-                        <Badge tone="blue">{labour.rating} rating</Badge>
-                      </div>
-                      <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                        {formatCurrency(labour.dailyWage)}/day - {labour.currentLocation}
-                      </p>
-                      <div className="mt-4">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={labour.availability !== 'Available'}
-                          onClick={() => handleQuickBook(labour)}
-                        >
-                          {labour.availability === 'Available' ? 'Book now' : labour.availability}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+                <Button as={Link} to="/search" variant="outline" size="sm">
+                  <Search size={16} />
+                  Find another service
+                </Button>
+              </div>
+              <div className="mt-4 space-y-2.5">
+                {nearbyLaboursLoading ? (
+                  <>
+                    <Skeleton className="h-20 w-full rounded-2xl" />
+                    <Skeleton className="h-20 w-full rounded-2xl" />
+                    <Skeleton className="h-20 w-full rounded-2xl" />
+                  </>
+                ) : filteredNearbyLabours.length ? (
+                  filteredNearbyLabours.map((labour) => (
+                    <LabourCard
+                      key={labour.id}
+                      labour={labour}
+                      compact
+                      onQuickBook={handleQuickBook}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    title="No service available in this area"
+                    description="Try another service or update your profile location."
+                    action={
+                      <Button as={Link} to="/settings" size="sm">
+                        Update location
+                      </Button>
+                    }
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -327,6 +309,7 @@ const ClientDashboardPage = () => {
       <QuickBookingDialog
         isOpen={Boolean(quickBookState?.labour)}
         labour={quickBookState?.labour ?? null}
+        candidateLabours={filteredNearbyLabours}
         defaultService={quickBookDefaults.defaultService}
         defaultBudget={quickBookDefaults.defaultBudget}
         onClose={() => setQuickBookState(null)}

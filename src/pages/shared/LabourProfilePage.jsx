@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { CalendarDays, MapPin, Phone, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { QuickBookingDialog } from '../../components/booking/QuickBookingDialog';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
@@ -12,16 +12,22 @@ import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeLabourById } from '../../services/labourService';
+import { subscribeReviewsForLabour } from '../../services/reviewService';
 import { formatCurrency } from '../../utils/formatters';
 
 const LabourProfilePage = () => {
   const { labourId } = useParams();
   const { currentUser, userProfile } = useAuth();
   const [labour, setLabour] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [selectedQuickBookLabour, setSelectedQuickBookLabour] = useState(null);
 
   useEffect(() => {
     return subscribeLabourById(labourId, setLabour, () => setLabour(null));
+  }, [labourId]);
+
+  useEffect(() => {
+    return subscribeReviewsForLabour(labourId, setReviews, () => setReviews([]));
   }, [labourId]);
 
   const isClient = userProfile?.role === 'client';
@@ -31,6 +37,24 @@ const LabourProfilePage = () => {
     : isClient
       ? 'Labour verification required'
       : 'Client account required';
+  const profileReviews = reviews.length ? reviews : labour?.reviews ?? [];
+  const ratingSummary = useMemo(() => {
+    if (!profileReviews.length) {
+      return {
+        rating: Number(labour?.rating || 0).toFixed(1).replace('.0', ''),
+        count: labour?.reviewsCount ?? 0
+      };
+    }
+
+    const average =
+      profileReviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) /
+      profileReviews.length;
+
+    return {
+      rating: average.toFixed(1).replace('.0', ''),
+      count: profileReviews.length
+    };
+  }, [labour?.rating, labour?.reviewsCount, profileReviews]);
 
   if (!labour) {
     return (
@@ -72,10 +96,10 @@ const LabourProfilePage = () => {
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-300">
                   <span className="inline-flex items-center gap-1">
                     <Star size={15} className="text-amber-500" />
-                    {labour.rating} rating
+                    {ratingSummary.rating} rating
                   </span>
                   <span>{labour.experienceYears} years experience</span>
-                  <span>{formatCurrency(labour.dailyWage)}/day</span>
+                  <span>Min {formatCurrency(labour.dailyWage)}</span>
                   <span>{labour.completedJobs} completed jobs</span>
                 </div>
                 <p className="mt-6 text-base leading-8 text-slate-600 dark:text-slate-300">
@@ -89,7 +113,7 @@ const LabourProfilePage = () => {
                   {isClient ? (
                     <Button type="button" onClick={() => setSelectedQuickBookLabour(labour)}>
                       <CalendarDays size={16} />
-                      Book now
+                      Send request
                     </Button>
                   ) : currentUser ? (
                     <Button type="button" disabled>
@@ -211,13 +235,17 @@ const LabourProfilePage = () => {
             description="Ratings and comments from recent clients."
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            {(labour.reviews ?? []).map((review) => (
+            {profileReviews.map((review) => (
               <Card key={review.id}>
                 <div className="flex items-center gap-2 text-amber-500">
                   <Star size={16} fill="currentColor" />
                   <span className="font-semibold text-slate-900 dark:text-white">{review.rating}</span>
                 </div>
-                <p className="mt-4 text-base text-slate-700 dark:text-slate-200">{review.comment}</p>
+                {review.comment ? (
+                  <p className="mt-4 text-base text-slate-700 dark:text-slate-200">
+                    {review.comment}
+                  </p>
+                ) : null}
                 <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   {review.clientName}
                 </p>
@@ -231,7 +259,7 @@ const LabourProfilePage = () => {
         isOpen={Boolean(selectedQuickBookLabour)}
         labour={selectedQuickBookLabour}
         defaultService={selectedQuickBookLabour?.category ?? labour.category}
-        defaultBudget={selectedQuickBookLabour?.dailyWage ?? labour.dailyWage}
+        defaultBudget=""
         onClose={() => setSelectedQuickBookLabour(null)}
       />
     </AppShell>

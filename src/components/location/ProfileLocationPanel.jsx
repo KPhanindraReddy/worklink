@@ -13,6 +13,7 @@ export const ProfileLocationPanel = ({
   roleLabel = 'user',
   locationValue = '',
   savedCoordinates = null,
+  disabled = false,
   onApplyLocation
 }) => {
   const geolocation = useGeolocation();
@@ -68,7 +69,7 @@ export const ProfileLocationPanel = ({
             type="button"
             size="sm"
             variant="outline"
-            disabled={geolocation.loading}
+            disabled={disabled || geolocation.loading}
             onClick={handleApplyLiveLocation}
           >
             {geolocation.loading ? (

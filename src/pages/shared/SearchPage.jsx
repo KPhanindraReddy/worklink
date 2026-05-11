@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, MapPin, Mic, SlidersHorizontal } from 'lucide-react';
+import { MapPin, Mic, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { LabourCard } from '../../components/cards/LabourCard';
@@ -17,7 +17,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import { searchLabours } from '../../services/labourService';
 import { resolvePostAuthPath } from '../../utils/authFlow';
-import { formatCurrency, formatDistanceKm } from '../../utils/formatters';
+import { formatDistanceKm } from '../../utils/formatters';
 import { getLocationLabel, normalizeCoordinates } from '../../utils/location';
 import { availabilityOptions, workCategories } from '../../utils/constants';
 
@@ -27,7 +27,7 @@ const SearchPage = () => {
   const [filters, setFilters] = useState({
     query: searchParams.get('query') ?? '',
     category: searchParams.get('category') ?? '',
-    availability: '',
+    availability: 'Available',
     minRating: '',
     minExperience: '',
     maxPrice: ''
@@ -125,17 +125,13 @@ const SearchPage = () => {
         }),
     [results]
   );
-  const visibleServices = useMemo(() => {
-    const query = filters.query.trim().toLowerCase();
-
-    return workCategories.filter((category) => {
-      if (!query) {
-        return true;
-      }
-
-      return category.toLowerCase().includes(query);
-    });
-  }, [filters.query]);
+  const availableServiceOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(availableResults.map((labour) => labour.category).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [availableResults]
+  );
   const defaultQuickBookService = useMemo(
     () => filters.query.trim() || filters.category || selectedLabour?.category || '',
     [filters.category, filters.query, selectedLabour?.category]
@@ -145,7 +141,7 @@ const SearchPage = () => {
     setQuickBookState({
       labour,
       defaultService: filters.query.trim() || filters.category || labour.category || '',
-      defaultBudget: filters.maxPrice || labour.dailyWage || ''
+      defaultBudget: filters.maxPrice || ''
     });
   };
 
@@ -165,7 +161,7 @@ const SearchPage = () => {
           <SectionHeading
             eyebrow="Discovery"
             title="Search, filter, and shortlist labour in real time"
-            description="Search nearby workers by service, price, availability, and distance, then book directly with date and time."
+            description="Choose a service, confirm what is available near your saved location, and book a worker."
           />
 
           <div className="mt-10 grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -185,8 +181,8 @@ const SearchPage = () => {
                 {isListening ? 'Listening...' : 'Voice search'}
               </Button>
               <SelectField
-                label="Category"
-                placeholder="All categories"
+                label="Service"
+                placeholder="Choose a service"
                 options={workCategories}
                 value={filters.category}
                 onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value }))}
@@ -245,39 +241,35 @@ const SearchPage = () => {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h3 className="text-xl font-semibold text-slate-950 dark:text-white">
-                      Available services
+                      Services available near you
                     </h3>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                      Choose a service first, then see the available workers for it.
+                      Use the menu to narrow the worker list.
                     </p>
                   </div>
-                  <Badge tone="blue">{visibleServices.length} services</Badge>
+                  <Badge tone={availableServiceOptions.length ? 'emerald' : 'slate'}>
+                    {searching ? 'Checking' : `${availableServiceOptions.length} available`}
+                  </Badge>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {visibleServices.map((service) => (
-                    <button
-                      key={service}
-                      type="button"
-                      onClick={() => {
-                        setFilters((prev) => ({ ...prev, category: service, query: service }));
-                        setSelectedLabour(null);
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${
-                        filters.category === service
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-100 text-brand-700">
-                          <BriefcaseBusiness size={17} />
-                        </span>
-                        <span className="font-semibold text-slate-950">{service}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                {availableServiceOptions.length ? (
+                  <SelectField
+                    label="Available service"
+                    placeholder="All available services"
+                    options={availableServiceOptions}
+                    value={filters.category}
+                    className="mt-5"
+                    onChange={(event) => {
+                      const service = event.target.value;
+                      setFilters((prev) => ({ ...prev, category: service, query: service }));
+                      setSelectedLabour(null);
+                    }}
+                  />
+                ) : (
+                  <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm font-medium text-slate-600">
+                    No service available in your area right now.
+                  </div>
+                )}
               </Card>
 
               {selectedLabour ? (
@@ -293,12 +285,11 @@ const SearchPage = () => {
                       <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-700">
                         <Badge tone="emerald">{selectedLabour.availability}</Badge>
                         <Badge tone="slate">{formatDistanceKm(selectedLabour.distanceKm)}</Badge>
-                        <Badge tone="blue">{formatCurrency(selectedLabour.dailyWage)}/day</Badge>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" onClick={() => handleQuickBook(selectedLabour)}>
-                        Book now
+                        Send request
                       </Button>
                       <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
                         View full profile
@@ -313,49 +304,26 @@ const SearchPage = () => {
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                   Pick one worker from this service. The closest available profiles are shown first when GPS is active.
                 </p>
-                <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                <div className="mt-4 space-y-2.5">
                   {availableResults.length ? (
                     availableResults.map((labour) => (
                       <LabourCard
                         key={labour.id}
                         labour={labour}
+                        compact
                         showMatchScore
                         onQuickBook={handleQuickBook}
                       />
                     ))
                   ) : (
-                    <div className="xl:col-span-2">
-                      <EmptyState
-                        title="Service not available in this locality"
-                        description="Try another service or allow location access so WorkLink can search nearby labour more accurately."
-                      />
-                    </div>
+                    <EmptyState
+                      title="Service not available in this locality"
+                      description="Try another service or allow location access so WorkLink can search nearby labour more accurately."
+                    />
                   )}
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-xl font-semibold text-slate-950 dark:text-white">Recommended profiles</h3>
-                <div className="mt-5 grid gap-5 xl:grid-cols-2">
-                  {results.length ? (
-                    results.map((labour) => (
-                      <LabourCard
-                        key={labour.id}
-                        labour={labour}
-                        showMatchScore
-                        onQuickBook={handleQuickBook}
-                      />
-                    ))
-                  ) : (
-                    <div className="xl:col-span-2">
-                      <EmptyState
-                        title="No labour matched these filters"
-                        description="Try widening the price range, removing a category filter, or searching with fewer keywords."
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -364,8 +332,9 @@ const SearchPage = () => {
       <QuickBookingDialog
         isOpen={Boolean(quickBookState?.labour)}
         labour={quickBookState?.labour ?? null}
+        candidateLabours={availableResults}
         defaultService={quickBookState?.defaultService ?? defaultQuickBookService}
-        defaultBudget={quickBookState?.defaultBudget ?? selectedLabour?.dailyWage ?? ''}
+        defaultBudget={quickBookState?.defaultBudget ?? ''}
         onClose={() => setQuickBookState(null)}
       />
     </AppShell>

@@ -116,6 +116,40 @@ export const updateBookingStatus = async (bookingId, status, extra = {}) => {
   });
 };
 
+export const timeoutPendingBooking = async ({ bookingId, clientId, reason = 'no_response' }) => {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase must be configured before updating bookings.');
+  }
+
+  const bookingRef = doc(db, 'bookings', bookingId);
+  debugBookingService('timeout requested', { bookingId, clientId, reason });
+
+  await runTransaction(db, async (transaction) => {
+    const bookingSnapshot = await transaction.get(bookingRef);
+
+    if (!bookingSnapshot.exists()) {
+      throw new Error('Booking was not found.');
+    }
+
+    const booking = bookingSnapshot.data();
+
+    if (booking.clientId !== clientId) {
+      throw new Error('This booking does not belong to your client account.');
+    }
+
+    if (booking.status !== 'pending') {
+      return;
+    }
+
+    transaction.update(bookingRef, {
+      status: 'timed_out',
+      timeoutReason: reason,
+      timedOutAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  });
+};
+
 export const startBookingWork = async ({ bookingId, labourId, otp }) => {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase must be configured before starting bookings.');

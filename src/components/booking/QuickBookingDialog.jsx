@@ -15,6 +15,7 @@ import { createNotification } from '../../services/notificationService';
 import { buildAppointmentDateTime, formatCurrency } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 import { formatCoordinates, getLocationLabel, normalizeCoordinates } from '../../utils/location';
+import { createRouteGroupId } from '../../utils/requestRouting';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
 const generateStartOtp = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -23,12 +24,13 @@ const buildInitialFormValues = ({ labour, userProfile, defaultService, defaultBu
   serviceName: defaultService || labour?.category || '',
   serviceDetails: '',
   address: userProfile?.location || userProfile?.currentLocation || '',
-  budget: defaultBudget || labour?.dailyWage || ''
+  budget: defaultBudget || ''
 });
 
 export const QuickBookingDialog = ({
   isOpen,
   labour,
+  candidateLabours = [],
   defaultService = '',
   defaultBudget = '',
   onClose
@@ -38,6 +40,7 @@ export const QuickBookingDialog = ({
   const [bookings, setBookings] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [requestTiming, setRequestTiming] = useState('instant');
   const [submitting, setSubmitting] = useState(false);
   const [formValues, setFormValues] = useState(
     buildInitialFormValues({ labour, userProfile, defaultService, defaultBudget })
@@ -72,8 +75,14 @@ export const QuickBookingDialog = ({
       !inProgressBooking &&
       formValues.serviceName.trim() &&
       formValues.address.trim() &&
-      selectedDate &&
-      selectedSlot
+      (requestTiming === 'instant' || (selectedDate && selectedSlot))
+  );
+  const sortedCandidateLabours = useMemo(
+    () =>
+      (candidateLabours.length ? candidateLabours : [labour])
+        .filter(Boolean)
+        .filter((item) => item.availability === 'Available'),
+    [candidateLabours, labour]
   );
 
   useEffect(() => {
@@ -102,6 +111,7 @@ export const QuickBookingDialog = ({
     setFormValues(buildInitialFormValues({ labour, userProfile, defaultService, defaultBudget }));
     setSelectedDate('');
     setSelectedSlot('');
+    setRequestTiming('instant');
     setRequestCoordinates(normalizeCoordinates(userProfile?.coordinates) || null);
   }, [
     defaultBudget,
@@ -155,41 +165,60 @@ export const QuickBookingDialog = ({
     }
 
     if (!canSubmit) {
-      toast.error('Choose a date, time, service, and address before sending.');
+      toast.error(
+        requestTiming === 'instant'
+          ? 'Add service and address before sending.'
+          : 'Choose a date, time, service, and address before sending.'
+      );
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const appointmentAt = buildAppointmentDateTime(selectedDate, selectedSlot);
+      const serviceName = formValues.serviceName.trim();
+      const targetLabour =
+        sortedCandidateLabours.find((item) => item.category === serviceName) ||
+        sortedCandidateLabours[0] ||
+        labour;
+      const appointmentAt =
+        requestTiming === 'instant'
+          ? new Date().toISOString()
+          : buildAppointmentDateTime(selectedDate, selectedSlot);
+      const routeGroupId = createRouteGroupId(currentUser.uid);
       const bookingId = await createBooking({
         clientId: currentUser.uid,
         clientName: userProfile.fullName || currentUser.displayName || 'Client',
         clientPhoneNumber: userProfile.phoneNumber || currentUser.phoneNumber || '',
         clientEmail: userProfile.email || currentUser.email || '',
-        labourId: labour.id,
-        labourName: labour.fullName,
-        labourPhoneNumber: labour.phoneNumber || '',
-        serviceType: formValues.serviceName.trim(),
+        labourId: targetLabour.id,
+        labourName: targetLabour.fullName,
+        labourPhoneNumber: targetLabour.phoneNumber || '',
+        serviceType: serviceName,
         serviceDetails: formValues.serviceDetails.trim(),
         location: formValues.address.trim(),
         coordinates: clientLocation,
         notes: formValues.serviceDetails.trim(),
-        amount: Number(formValues.budget) || labour.dailyWage || 0,
+        amount: Number(formValues.budget) || targetLabour.dailyWage || 0,
         appointmentAt,
+        requestMode: requestTiming,
         startOtp: generateStartOtp(),
-        requestFlow: 'quick_book_dialog'
+        requestFlow: 'quick_book_dialog',
+        routeGroupId,
+        previousLabourIds: []
       });
 
       let notificationDelivered = true;
 
       try {
         await createNotification({
-          userId: labour.id,
+          userId: targetLabour.id,
           senderId: currentUser.uid,
           title: 'New service request',
-          body: `${userProfile.fullName || 'A client'} requested ${formValues.serviceName.trim()} on ${selectedDate} at ${selectedSlot}.`,
+          body:
+            requestTiming === 'instant'
+              ? `${userProfile.fullName || 'A client'} requested ${serviceName} instantly.`
+              : `${userProfile.fullName || 'A client'} requested ${serviceName} on ${selectedDate} at ${selectedSlot}.`,
           type: 'booking',
           bookingId
         });
@@ -200,8 +229,8 @@ export const QuickBookingDialog = ({
 
       toast.success(
         notificationDelivered
-          ? 'Request sent to labour. You will see the OTP after they accept.'
-          : 'Request sent. Open labour dashboard and notifications after Firestore rules are deployed.'
+          ? 'Request submitted. Wait a few seconds for the labour response.'
+          : 'Request submitted. Wait for the labour response after Firestore rules are deployed.'
       );
       onClose();
     } catch (error) {
@@ -224,7 +253,7 @@ export const QuickBookingDialog = ({
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-700">Quick booking</p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-950">Book {labour.fullName}</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Pick a date and time, send the request, and wait for the labour to accept or reject.
+              Send instantly or schedule a time, then wait for the labour response.
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Close quick booking">
@@ -249,7 +278,7 @@ export const QuickBookingDialog = ({
                   <p className="mt-1 text-sm text-slate-600">{labour.category}</p>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
                     <Badge tone="emerald">{labour.availability}</Badge>
-                    <Badge tone="blue">{formatCurrency(labour.dailyWage)}/day</Badge>
+                    <Badge tone="blue">Min {formatCurrency(labour.dailyWage)}</Badge>
                   </div>
                 </div>
               </div>
@@ -320,12 +349,12 @@ export const QuickBookingDialog = ({
                 placeholder="Electrician, plumbing, painting..."
               />
               <InputField
-                label="Budget"
+                label="Your budget"
                 type="number"
                 min="0"
                 value={formValues.budget}
                 onChange={(event) => updateFormValue('budget', event.target.value)}
-                placeholder="2500"
+                placeholder={`Minimum ${formatCurrency(labour.dailyWage)}`}
               />
               <InputField
                 label="Address"
@@ -367,12 +396,38 @@ export const QuickBookingDialog = ({
               </div>
             </div>
 
-            <BookingCalendar
-              selectedDate={selectedDate}
-              selectedSlot={selectedSlot}
-              onDateChange={setSelectedDate}
-              onSlotChange={setSelectedSlot}
-            />
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+              {[
+                ['instant', 'Instant now'],
+                ['scheduled', 'Schedule time']
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setRequestTiming(value)}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    requestTiming === value
+                      ? 'bg-white text-brand-700 shadow-sm'
+                      : 'text-slate-600 hover:bg-white/70'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {requestTiming === 'scheduled' ? (
+              <BookingCalendar
+                selectedDate={selectedDate}
+                selectedSlot={selectedSlot}
+                onDateChange={setSelectedDate}
+                onSlotChange={setSelectedSlot}
+              />
+            ) : (
+              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-950">
+                Instant requests go to the nearest available labour first. If they reject or do not respond, WorkLink tries the next available labour automatically.
+              </div>
+            )}
 
             <Button type="submit" size="lg" className="w-full" disabled={submitting || !canSubmit}>
               {submitting ? (

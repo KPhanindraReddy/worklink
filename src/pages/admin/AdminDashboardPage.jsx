@@ -1,14 +1,11 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
-  Bell,
-  LayoutDashboard,
   LoaderCircle,
   Mail,
   MapPin,
   Phone,
   Search,
-  Settings,
   UserRound
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -19,7 +16,6 @@ import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
 import { Skeleton } from '../../components/common/Skeleton';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
-import { DashboardSidebar } from '../../components/layout/DashboardSidebar';
 import { AppShell } from '../../components/layout/AppShell';
 import { MetricsGrid } from '../../components/dashboard/MetricsGrid';
 import {
@@ -30,12 +26,6 @@ import {
 } from '../../services/adminService';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 import { getLocationLabel } from '../../utils/location';
-
-const sidebarItems = [
-  { to: '/admin', label: 'Overview', icon: LayoutDashboard },
-  { to: '/notifications', label: 'Alerts', icon: Bell },
-  { to: '/settings', label: 'Admin Profile', icon: Settings }
-];
 
 const AdminDashboardPage = () => {
   const [overview, setOverview] = useState({
@@ -219,9 +209,7 @@ const AdminDashboardPage = () => {
       <PageSEO title="Admin Dashboard" description="Manage WorkLink users, verification, reports, analytics, and marketplace operations." />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[280px_1fr]">
-          <DashboardSidebar items={sidebarItems} />
-
+        <div className="page-shell">
           <div className="space-y-6">
             <Card className="overflow-hidden rounded-[36px]">
               <div className="flex flex-wrap items-start justify-between gap-4 p-8">

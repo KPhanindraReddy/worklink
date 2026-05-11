@@ -1,5 +1,4 @@
 ﻿import {
-  BriefcaseBusiness,
   CheckCircle2,
   Clock3,
   LocateFixed,
@@ -22,6 +21,7 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { InputField } from '../../components/common/InputField';
 import { PageSEO } from '../../components/common/PageSEO';
+import { SelectField } from '../../components/common/SelectField';
 import { TextAreaField } from '../../components/common/TextAreaField';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +39,7 @@ import {
 } from '../../utils/formatters';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
 import { formatCoordinates, getLocationLabel, normalizeCoordinates } from '../../utils/location';
+import { createRouteGroupId } from '../../utils/requestRouting';
 
 const activeWorkStatuses = ['accepted', 'in_progress'];
 const generateStartOtp = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -63,6 +64,7 @@ const BookingPage = () => {
   const [selectedLabour, setSelectedLabour] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [requestTiming, setRequestTiming] = useState('instant');
   const [bookings, setBookings] = useState([]);
   const [searched, setSearched] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -198,8 +200,7 @@ const BookingPage = () => {
       selectedLabour.availability === 'Available' &&
       formValues.serviceName.trim() &&
       formValues.address.trim() &&
-      selectedDate &&
-      selectedSlot
+      (requestTiming === 'instant' || (selectedDate && selectedSlot))
   );
 
   const updateFormValue = (key, value) =>
@@ -377,7 +378,11 @@ const BookingPage = () => {
     }
 
     if (!canRequest) {
-      toast.error('Choose service, address, date, time, and an available labour before sending.');
+      toast.error(
+        requestTiming === 'instant'
+          ? 'Choose service, address, and an available labour before sending.'
+          : 'Choose service, address, date, time, and an available labour before sending.'
+      );
       return;
     }
 
@@ -391,7 +396,11 @@ const BookingPage = () => {
     });
 
     try {
-      const appointmentAt = buildAppointmentDateTime(selectedDate, selectedSlot);
+      const appointmentAt =
+        requestTiming === 'instant'
+          ? new Date().toISOString()
+          : buildAppointmentDateTime(selectedDate, selectedSlot);
+      const routeGroupId = createRouteGroupId(currentUser.uid);
       const bookingId = await createBooking({
         clientId: currentUser.uid,
         clientName: userProfile.fullName,
@@ -407,8 +416,11 @@ const BookingPage = () => {
         notes: formValues.serviceDetails,
         amount: Number(formValues.budget) || selectedLabour.dailyWage,
         appointmentAt,
+        requestMode: requestTiming,
         startOtp: generateStartOtp(),
-        requestFlow: 'client_service_map'
+        requestFlow: 'client_service_map',
+        routeGroupId,
+        previousLabourIds: []
       });
 
       let notificationDelivered = true;
@@ -418,7 +430,10 @@ const BookingPage = () => {
           userId: selectedLabour.id,
           senderId: currentUser.uid,
           title: 'New service request',
-          body: `${userProfile.fullName} requested ${formValues.serviceName} at ${formValues.address}.`,
+          body:
+            requestTiming === 'instant'
+              ? `${userProfile.fullName} requested ${formValues.serviceName} instantly at ${formValues.address}.`
+              : `${userProfile.fullName} requested ${formValues.serviceName} at ${formValues.address}.`,
           type: 'booking',
           bookingId
         });
@@ -435,8 +450,8 @@ const BookingPage = () => {
 
       toast.success(
         notificationDelivered
-          ? 'Service request sent. Contact unlocks after labour accepts.'
-          : 'Service request sent. Open the labour dashboard and notifications after Firestore rules are deployed.'
+          ? 'Request submitted. Wait a few seconds for the labour response.'
+          : 'Request submitted. Open the labour dashboard and notifications after Firestore rules are deployed.'
       );
     } catch (error) {
       console.error('[WorkLink booking] request submit failed', error);
@@ -479,27 +494,14 @@ const BookingPage = () => {
                   </Badge>
                 </div>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {workCategories.map((service) => (
-                    <button
-                      key={service}
-                      type="button"
-                      onClick={() => handleServiceSelect(service)}
-                      className={`rounded-2xl border p-4 text-left transition ${
-                        formValues.serviceName === service
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-100 text-brand-700">
-                          <BriefcaseBusiness size={17} />
-                        </span>
-                        <span className="font-semibold text-slate-950">{service}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <SelectField
+                  label="Service"
+                  placeholder="Choose a service"
+                  options={workCategories}
+                  value={workCategories.includes(formValues.serviceName) ? formValues.serviceName : ''}
+                  className="mt-6"
+                  onChange={(event) => handleServiceSelect(event.target.value)}
+                />
               </Card>
 
               {pendingBookings.length ? (
@@ -557,7 +559,6 @@ const BookingPage = () => {
                       <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-700">
                         <Badge tone="emerald">{selectedLabour.availability}</Badge>
                         <Badge tone="slate">{formatDistanceKm(selectedLabour.distanceKm)}</Badge>
-                        <Badge tone="blue">{formatCurrency(selectedLabour.dailyWage)}/day</Badge>
                       </div>
                     </div>
                     <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
@@ -585,18 +586,23 @@ const BookingPage = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Card className="rounded-[28px] border-slate-300 p-6 shadow-sm md:p-8">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <InputField
+                    <SelectField
                       label="Service name"
-                      value={formValues.serviceName}
+                      placeholder="Choose a service"
+                      options={workCategories}
+                      value={workCategories.includes(formValues.serviceName) ? formValues.serviceName : ''}
                       onChange={(event) => updateFormValue('serviceName', event.target.value)}
-                      placeholder="Electrician, plumbing, painting..."
                     />
                     <InputField
-                      label="Budget / amount you can pay"
+                      label="Your budget"
                       type="number"
                       value={formValues.budget}
                       onChange={(event) => updateFormValue('budget', event.target.value)}
-                      placeholder="2500"
+                      placeholder={
+                        selectedLabour?.dailyWage
+                          ? `Minimum ${formatCurrency(selectedLabour.dailyWage)}`
+                          : '2500'
+                      }
                     />
                     <div className="md:col-span-2">
                       <InputField
@@ -645,12 +651,40 @@ const BookingPage = () => {
                   </div>
                 </Card>
 
-                <BookingCalendar
-                  selectedDate={selectedDate}
-                  selectedSlot={selectedSlot}
-                  onDateChange={setSelectedDate}
-                  onSlotChange={setSelectedSlot}
-                />
+                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+                  {[
+                    ['instant', 'Instant now'],
+                    ['scheduled', 'Schedule time']
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setRequestTiming(value)}
+                      className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                        requestTiming === value
+                          ? 'bg-white text-brand-700 shadow-sm'
+                          : 'text-slate-600 hover:bg-white/70'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {requestTiming === 'scheduled' ? (
+                  <BookingCalendar
+                    selectedDate={selectedDate}
+                    selectedSlot={selectedSlot}
+                    onDateChange={setSelectedDate}
+                    onSlotChange={setSelectedSlot}
+                  />
+                ) : (
+                  <Card className="rounded-[24px] border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-medium leading-6 text-emerald-950">
+                      Instant requests go to the nearest available labour first. If there is no response in 30 seconds, WorkLink tries the next available labour. If only one labour is available, the request stays open for 5 minutes.
+                    </p>
+                  </Card>
+                )}
 
                 <Button type="submit" size="lg" className="w-full" disabled={submitting || !canRequest}>
                   <Send size={17} />
@@ -703,7 +737,6 @@ const BookingPage = () => {
                             <p className="mt-1 text-sm font-medium text-slate-700">{labour.category}</p>
                             <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
                               <span>{formatDistanceKm(labour.distanceKm)}</span>
-                              <span>{formatCurrency(labour.dailyWage)}/day</span>
                               <span>{labour.rating} rating</span>
                             </div>
                           </div>
@@ -828,7 +861,7 @@ const BookingPage = () => {
                               {booking.labourName} - {booking.location}
                             </p>
                           </div>
-                          <Badge tone={booking.status === 'accepted' ? 'emerald' : booking.status === 'rejected' ? 'rose' : 'amber'}>
+                          <Badge tone={booking.status === 'accepted' ? 'emerald' : booking.status === 'rejected' ? 'rose' : booking.status === 'timed_out' ? 'slate' : 'amber'}>
                             {booking.status}
                           </Badge>
                         </div>

@@ -1,12 +1,14 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BriefcaseBusiness,
   CircleHelp,
   LayoutDashboard,
+  LogOut,
   Menu,
   MessageCircle,
   Search,
+  UserRound,
   X
 } from 'lucide-react';
 import { useState } from 'react';
@@ -34,13 +36,85 @@ const actionButtonClass = (isActive) =>
     isActive && 'border-brand-200 bg-brand-50 text-brand-700'
   );
 
+const ProfileMenu = ({
+  compact = false,
+  isActive,
+  onLogout,
+  profileInitial,
+  profileLabel,
+  profileName
+}) => {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className={clsx(
+          compact
+            ? 'grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-glow'
+            : 'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 shadow-sm transition hover:border-brand-200',
+          isActive && (compact ? 'ring-2 ring-brand-200 ring-offset-2' : 'border-brand-200 bg-brand-50')
+        )}
+        onClick={() => setIsProfileOpen((prev) => !prev)}
+        aria-label={`Open ${profileLabel.toLowerCase()} menu`}
+        aria-expanded={isProfileOpen}
+      >
+        <span
+          className={clsx(
+            'grid place-items-center rounded-full bg-brand-600 text-sm font-bold text-white',
+            compact ? 'h-10 w-10' : 'h-8 w-8'
+          )}
+        >
+          {profileInitial}
+        </span>
+        {!compact ? (
+          <span className="hidden max-w-[104px] truncate text-sm font-semibold text-slate-700 xl:block">
+            {profileName || profileLabel}
+          </span>
+        ) : null}
+      </button>
+
+      {isProfileOpen ? (
+        <div className="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-soft">
+          <Link
+            to="/settings"
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+            onClick={() => setIsProfileOpen(false)}
+          >
+            <UserRound size={16} />
+            Profile
+          </Link>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50"
+            onClick={async () => {
+              setIsProfileOpen(false);
+              await onLogout();
+            }}
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 export const Navbar = () => {
   const { pathname } = useLocation();
-  const { currentUser, userProfile } = useAuth();
+  const navigate = useNavigate();
+  const { currentUser, userProfile, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const primaryPath = currentUser ? routeByRole(userProfile?.role) : '/';
   const profileInitial = getProfileInitial(userProfile, currentUser);
   const profileLabel = userProfile?.role === 'admin' ? 'Admin profile' : 'Profile';
+  const handleLogout = async () => {
+    await logout();
+    setIsOpen(false);
+    navigate('/auth', { replace: true });
+  };
 
   const baseLinks = currentUser
     ? [
@@ -162,23 +236,13 @@ export const Navbar = () => {
                   </Link>
                 );
               })}
-              <Link
-                to="/settings"
-                className={clsx(
-                  'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pr-3 shadow-sm transition hover:border-brand-200',
-                  matchesRoutePath(pathname, ['/settings', '/complete-profile*']) &&
-                    'border-brand-200 bg-brand-50'
-                )}
-                aria-label="Open profile"
-                title={profileLabel}
-              >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">
-                  {profileInitial}
-                </span>
-                <span className="hidden max-w-[104px] truncate text-sm font-semibold text-slate-700 xl:block">
-                  {userProfile?.fullName || profileLabel}
-                </span>
-              </Link>
+              <ProfileMenu
+                isActive={matchesRoutePath(pathname, ['/settings', '/complete-profile*'])}
+                onLogout={handleLogout}
+                profileInitial={profileInitial}
+                profileLabel={profileLabel}
+                profileName={userProfile?.fullName}
+              />
             </>
           ) : (
             <Button as={Link} to="/auth" variant="primary">
@@ -206,18 +270,14 @@ export const Navbar = () => {
                   </Link>
                 );
               })}
-              <Link
-                to="/settings"
-                className={clsx(
-                  'grid h-10 w-10 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-glow',
-                  matchesRoutePath(pathname, ['/settings', '/complete-profile*']) &&
-                    'ring-2 ring-brand-200 ring-offset-2'
-                )}
-                onClick={() => setIsOpen(false)}
-                aria-label={`Open ${profileLabel.toLowerCase()}`}
-              >
-                {profileInitial}
-              </Link>
+              <ProfileMenu
+                compact
+                isActive={matchesRoutePath(pathname, ['/settings', '/complete-profile*'])}
+                onLogout={handleLogout}
+                profileInitial={profileInitial}
+                profileLabel={profileLabel}
+                profileName={userProfile?.fullName}
+              />
             </>
           ) : null}
           <Button

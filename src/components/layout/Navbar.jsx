@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
-  BriefcaseBusiness,
   CircleHelp,
   LayoutDashboard,
   LogOut,
@@ -18,10 +17,11 @@ import { useAuth } from '../../context/AuthContext';
 import { routeByRole } from '../../utils/authFlow';
 import { matchesRoutePath } from '../../utils/routeMatching';
 import { LiveLocationBadge } from './LiveLocationBadge';
+import { BrandLogo } from './BrandLogo';
 
 const linkClassName = ({ isActive }) =>
   clsx(
-    'inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition',
+    'inline-flex min-h-10 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition',
     isActive
       ? 'bg-brand-50 text-brand-700'
       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
@@ -183,20 +183,14 @@ export const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-      <div className="page-shell flex items-center justify-between gap-2 py-2.5 sm:gap-3 sm:py-3">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Link
+      <div className="page-shell relative flex items-center justify-between gap-2 py-2.5 sm:gap-3 sm:py-3">
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 lg:flex-none lg:justify-start sm:gap-3">
+          <BrandLogo
             to={primaryPath}
-            className="flex min-w-0 items-center gap-2 sm:gap-3"
             onClick={() => setIsOpen(false)}
-          >
-            <div className="grid h-9 w-9 flex-none place-items-center rounded-2xl bg-brand-600 text-white shadow-glow sm:h-10 sm:w-10">
-              <BriefcaseBusiness size={18} />
-            </div>
-            <p className="truncate font-display text-base font-bold text-slate-950 sm:text-lg">
-              WorkLink
-            </p>
-          </Link>
+            showTagline
+            className="max-w-[9rem] sm:max-w-none"
+          />
           {currentUser ? (
             <LiveLocationBadge
               currentUser={currentUser}
@@ -205,6 +199,55 @@ export const Navbar = () => {
               className="hidden max-w-[18rem] md:flex"
             />
           ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 lg:hidden">
+            {currentUser ? (
+              <>
+                {quickLinks.map((link) => {
+                  const Icon = link.icon;
+
+                  return (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className={actionButtonClass(matchesRoutePath(pathname, link.matchers))}
+                      aria-label={link.label}
+                      title={link.label}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Icon size={16} />
+                    </Link>
+                  );
+                })}
+                <ProfileMenu
+                  compact
+                  isActive={matchesRoutePath(pathname, ['/settings', '/complete-profile*'])}
+                  onLogout={handleLogout}
+                  profileInitial={profileInitial}
+                  profileLabel={profileLabel}
+                  profileName={userProfile?.fullName}
+                />
+              </>
+            ) : (
+              <Button
+                as={Link}
+                to="/auth?role=client&mode=login"
+                size="sm"
+                className="hidden px-2.5 sm:inline-flex"
+                onClick={() => setIsOpen(false)}
+              >
+                Login
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 w-10 rounded-full p-0 shadow-sm"
+              onClick={() => setIsOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+            >
+              {isOpen ? <X size={18} /> : <Menu size={18} />}
+            </Button>
+          </div>
         </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
@@ -257,58 +300,10 @@ export const Navbar = () => {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:hidden">
-          {currentUser ? (
-            <>
-              {quickLinks.map((link) => {
-                const Icon = link.icon;
-
-                return (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={actionButtonClass(matchesRoutePath(pathname, link.matchers))}
-                    aria-label={link.label}
-                    title={link.label}
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Icon size={16} />
-                  </Link>
-                );
-              })}
-              <ProfileMenu
-                compact
-                isActive={matchesRoutePath(pathname, ['/settings', '/complete-profile*'])}
-                onLogout={handleLogout}
-                profileInitial={profileInitial}
-                profileLabel={profileLabel}
-                profileName={userProfile?.fullName}
-              />
-            </>
-          ) : (
-            <Button
-              as={Link}
-              to="/auth?role=client&mode=login"
-              size="sm"
-              className="px-2.5"
-              onClick={() => setIsOpen(false)}
-            >
-              Login
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsOpen((prev) => !prev)}
-            aria-label="Toggle navigation"
-          >
-            {isOpen ? <X size={18} /> : <Menu size={18} />}
-          </Button>
-        </div>
       </div>
 
       {isOpen ? (
-        <div className="page-shell space-y-3 border-t border-slate-200 pb-4 pt-3 lg:hidden">
+        <div className="page-shell max-h-[calc(100dvh-4.25rem)] space-y-3 overflow-y-auto border-t border-slate-200 pb-4 pt-3 lg:hidden">
           {currentUser ? (
             <LiveLocationBadge
               currentUser={currentUser}
@@ -336,7 +331,7 @@ export const Navbar = () => {
           {currentUser ? (
             <Link
               to="/settings"
-              className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2"
+              className="inline-flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2"
               onClick={() => setIsOpen(false)}
             >
               <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-bold text-white">

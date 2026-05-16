@@ -49,12 +49,12 @@ export const ProfileLocationPanel = ({
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
             <MapPin size={15} className="text-brand-600" />
             Live location for {roleLabel}
           </div>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
+          <p className="mt-1 break-words text-xs leading-5 text-slate-600">
             {liveCoordinates
               ? `Updated GPS ready: ${formatCoordinates(liveCoordinates)}`
               : geolocation.loading
@@ -64,11 +64,12 @@ export const ProfileLocationPanel = ({
                   : geolocation.error || 'Save location once, then update it only when you move.'}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
+            className="w-full"
             disabled={disabled || geolocation.loading}
             onClick={handleApplyLiveLocation}
           >
@@ -87,6 +88,7 @@ export const ProfileLocationPanel = ({
               rel="noreferrer"
               size="sm"
               variant="outline"
+              className="w-full"
             >
               <Navigation size={15} />
               Open map

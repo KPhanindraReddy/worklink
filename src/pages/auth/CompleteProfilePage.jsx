@@ -151,14 +151,14 @@ const CompleteProfilePage = () => {
 
       <section className="section-space">
         <div className="page-shell max-w-[920px]">
-          <Card className="rounded-[36px] p-6 md:p-8">
+          <Card className="rounded-[28px] p-4 sm:p-6 md:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700">
                   <UserRound size={16} />
                   Profile
                 </div>
-                <h1 className="mt-4 text-3xl font-bold text-slate-950">Complete your profile</h1>
+                <h1 className="mt-4 break-words text-2xl font-bold text-slate-950 sm:text-3xl">Complete your profile</h1>
                 <p className="mt-2 text-sm text-slate-600">
                   Enter your details in order, then save to open your dashboard.
                 </p>
@@ -166,6 +166,7 @@ const CompleteProfilePage = () => {
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 onClick={async () => {
                   await logout();
                   navigate('/auth', { replace: true });
@@ -177,12 +178,13 @@ const CompleteProfilePage = () => {
 
             <div className="mt-6">
               <p className="text-sm font-semibold text-slate-900">Profile type</p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 {roles.map((item) => (
                   <Button
                     key={item.value}
                     type="button"
                     variant={role === item.value ? 'primary' : 'outline'}
+                    className="w-full sm:w-auto"
                     disabled={isRoleLocked && role !== item.value}
                     onClick={() => {
                       if (isRoleLocked) {

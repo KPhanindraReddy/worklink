@@ -11,7 +11,7 @@ export const BookingCalendar = ({
   onSlotChange,
   slots = defaultSlots
 }) => (
-  <Card className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+  <Card className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_1fr]">
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-brand-600">
         <CalendarDays size={18} />
@@ -22,7 +22,7 @@ export const BookingCalendar = ({
         value={selectedDate}
         min={new Date().toISOString().slice(0, 10)}
         onChange={(event) => onDateChange(event.target.value)}
-        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-brand-500/20"
+        className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 sm:text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:ring-brand-500/20"
       />
     </div>
     <div className="space-y-4">
@@ -36,6 +36,7 @@ export const BookingCalendar = ({
             key={slot}
             type="button"
             variant={slot === selectedSlot ? 'primary' : 'outline'}
+            className="w-full"
             onClick={() => onSlotChange(slot)}
           >
             {slot}

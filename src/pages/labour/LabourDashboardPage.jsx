@@ -508,14 +508,14 @@ const LabourDashboardPage = () => {
               </Card>
             ) : null}
 
-            <Card className="overflow-hidden rounded-[36px]">
-              <div className="grid gap-6 p-5 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <Card className="overflow-hidden rounded-[28px] sm:rounded-[36px]">
+              <div className="grid gap-5 p-4 sm:p-5 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">{dashboardProfile.category}</Badge>
                     <Badge tone="slate">{dashboardLocationLabel}</Badge>
                   </div>
-                  <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
+                  <h1 className="mt-4 break-words font-display text-2xl font-bold text-slate-950 sm:text-3xl md:text-4xl">
                     {dashboardProfile.fullName}
                   </h1>
                 </div>
@@ -657,6 +657,7 @@ const LabourDashboardPage = () => {
                               type="button"
                               size="sm"
                               disabled={completingBookingId === booking.id}
+                              className="w-full sm:w-auto"
                               onClick={() => handleCompleteWork(booking)}
                             >
                               {completingBookingId === booking.id ? 'Completing...' : 'Complete work'}

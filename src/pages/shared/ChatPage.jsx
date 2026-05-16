@@ -170,7 +170,7 @@ const ChatPage = () => {
       <PageSEO title="Chat" description="Real-time one-to-one chat between clients and labour professionals." />
 
       <section className="section-space">
-        <div className="page-shell grid gap-6 xl:grid-cols-[360px_1fr]">
+        <div className="page-shell grid gap-4 xl:grid-cols-[360px_1fr] xl:gap-6">
           <ConversationList
             conversations={conversations}
             activeConversationId={activeConversation?.id}

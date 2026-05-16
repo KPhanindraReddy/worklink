@@ -36,6 +36,7 @@ const SearchPage = () => {
   const [selectedLabour, setSelectedLabour] = useState(null);
   const [quickBookState, setQuickBookState] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const debouncedFilters = useDebounce(filters, 300);
   const { isListening, startListening } = useVoiceSearch({
     lang: 'en-IN',
@@ -164,79 +165,101 @@ const SearchPage = () => {
             description="Choose a service, confirm what is available near your saved location, and book a worker."
           />
 
-          <div className="mt-10 grid gap-6 lg:grid-cols-[320px_1fr]">
-            <Card className="h-fit space-y-4">
-              <div className="flex items-center gap-2 text-slate-950 dark:text-white">
-                <SlidersHorizontal size={18} />
-                <h3 className="text-lg font-semibold">Filters</h3>
-              </div>
-              <InputField
-                label="Search by skill"
-                value={filters.query}
-                placeholder="Electrician, painter, plumbing..."
-                onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
-              />
-              <Button type="button" variant="outline" onClick={startListening}>
-                <Mic size={16} />
-                {isListening ? 'Listening...' : 'Voice search'}
-              </Button>
-              <SelectField
-                label="Service"
-                placeholder="Choose a service"
-                options={workCategories}
-                value={filters.category}
-                onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value }))}
-              />
-              <SelectField
-                label="Availability"
-                placeholder="Any status"
-                options={availabilityOptions}
-                value={filters.availability}
-                onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, availability: event.target.value }))
-                }
-              />
-              <InputField
-                label="Minimum rating"
-                type="number"
-                min="0"
-                max="5"
-                step="0.1"
-                value={filters.minRating}
-                onChange={(event) => setFilters((prev) => ({ ...prev, minRating: event.target.value }))}
-              />
-              <InputField
-                label="Minimum experience"
-                type="number"
-                min="0"
-                value={filters.minExperience}
-                onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, minExperience: event.target.value }))
-                }
-              />
-              <InputField
-                label="Maximum daily wage"
-                type="number"
-                min="0"
-                value={filters.maxPrice}
-                onChange={(event) => setFilters((prev) => ({ ...prev, maxPrice: event.target.value }))}
-              />
-                <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
-                <div className="flex items-center gap-2 font-semibold">
-                  <MapPin size={16} />
-                  Nearby labour
+          <div className="mt-5 grid gap-4 sm:mt-8 lg:grid-cols-[320px_1fr] lg:gap-6">
+            <Card className="h-fit space-y-4 lg:sticky lg:top-24">
+              <div className="flex items-center justify-between gap-3 text-slate-950 dark:text-white">
+                <div className="flex min-w-0 items-center gap-2">
+                  <SlidersHorizontal size={18} className="flex-none" />
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-semibold">Filters</h3>
+                    <p className="text-xs text-slate-500 lg:hidden">
+                      {filters.query || filters.category || filters.maxPrice
+                        ? 'Your filters are active'
+                        : 'Tap to narrow results'}
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-2">
-                  {savedOrigin
-                    ? `Using saved location${savedLocationLabel ? `: ${savedLocationLabel}` : ''}. Results are ranked by distance too.`
-                    : currentUser
-                      ? 'Save your location once in profile to rank workers by distance.'
-                      : 'Sign in and save a location if you want distance-based matching.'}
-                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="lg:hidden"
+                  onClick={() => setFiltersOpen((prev) => !prev)}
+                  aria-expanded={filtersOpen}
+                >
+                  {filtersOpen ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+
+              <div className={filtersOpen ? 'space-y-4 lg:block' : 'hidden space-y-4 lg:block'}>
+                <InputField
+                  label="Search by skill"
+                  value={filters.query}
+                  placeholder="Electrician, painter, plumbing..."
+                  onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
+                />
+                <Button type="button" variant="outline" className="w-full" onClick={startListening}>
+                  <Mic size={16} />
+                  {isListening ? 'Listening...' : 'Voice search'}
+                </Button>
+                <SelectField
+                  label="Service"
+                  placeholder="Choose a service"
+                  options={workCategories}
+                  value={filters.category}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value }))}
+                />
+                <SelectField
+                  label="Availability"
+                  placeholder="Any status"
+                  options={availabilityOptions}
+                  value={filters.availability}
+                  onChange={(event) =>
+                    setFilters((prev) => ({ ...prev, availability: event.target.value }))
+                  }
+                />
+                <InputField
+                  label="Minimum rating"
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={filters.minRating}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, minRating: event.target.value }))}
+                />
+                <InputField
+                  label="Minimum experience"
+                  type="number"
+                  min="0"
+                  value={filters.minExperience}
+                  onChange={(event) =>
+                    setFilters((prev) => ({ ...prev, minExperience: event.target.value }))
+                  }
+                />
+                <InputField
+                  label="Maximum daily wage"
+                  type="number"
+                  min="0"
+                  value={filters.maxPrice}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, maxPrice: event.target.value }))}
+                />
+                <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <MapPin size={16} />
+                    Nearby labour
+                  </div>
+                  <p className="mt-2">
+                    {savedOrigin
+                      ? `Using saved location${savedLocationLabel ? `: ${savedLocationLabel}` : ''}. Results are ranked by distance too.`
+                      : currentUser
+                        ? 'Save your location once in profile to rank workers by distance.'
+                        : 'Sign in and save a location if you want distance-based matching.'}
+                  </p>
+                </div>
               </div>
             </Card>
 
-            <div className="space-y-8">
+            <div className="space-y-5 sm:space-y-8">
               <Card>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
@@ -287,11 +310,11 @@ const SearchPage = () => {
                         <Badge tone="slate">{formatDistanceKm(selectedLabour.distanceKm)}</Badge>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      <Button type="button" onClick={() => handleQuickBook(selectedLabour)}>
+                    <div className="grid gap-3 sm:flex sm:flex-wrap">
+                      <Button type="button" className="w-full sm:w-auto" onClick={() => handleQuickBook(selectedLabour)}>
                         Send request
                       </Button>
-                      <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
+                      <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline" className="w-full sm:w-auto">
                         View full profile
                       </Button>
                     </div>

@@ -133,23 +133,23 @@ const ClientDashboardPage = () => {
       <section className="section-space">
         <div className="page-shell">
           <div className="space-y-6">
-            <Card className="overflow-hidden rounded-[36px]">
-              <div className="grid gap-6 p-6 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <Card className="overflow-hidden rounded-[28px] sm:rounded-[36px]">
+              <div className="grid gap-5 p-4 sm:p-6 md:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
                 <div>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">Client</Badge>
                     <Badge tone="slate">{clientLocationLabel}</Badge>
                   </div>
-                  <h1 className="mt-4 font-display text-3xl font-bold text-slate-950 md:text-4xl">
+                  <h1 className="mt-4 break-words font-display text-2xl font-bold text-slate-950 sm:text-3xl md:text-4xl">
                     Hello, {userProfile?.fullName ?? 'Client'}
                   </h1>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button as={Link} to="/search" size="sm">
+                <div className="grid gap-3 sm:flex sm:flex-wrap">
+                  <Button as={Link} to="/search" size="sm" className="w-full sm:w-auto">
                     <Search size={16} />
                     Search Service
                   </Button>
-                  <Button as={Link} to="/chat" variant="outline" size="sm">
+                  <Button as={Link} to="/chat" variant="outline" size="sm" className="w-full sm:w-auto">
                     <MessageCircle size={16} />
                     Chat
                   </Button>
@@ -203,8 +203,8 @@ const ClientDashboardPage = () => {
                   ) : trackedBookings.length ? (
                     trackedBookings.map((booking) => (
                       <div key={booking.id} className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-800/50">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
                             <h3 className="font-semibold text-slate-950 dark:text-white">
                               {booking.serviceType}
                             </h3>
@@ -268,7 +268,7 @@ const ClientDashboardPage = () => {
                       : 'Add GPS in profile to improve nearby matching.'}
                   </p>
                 </div>
-                <Button as={Link} to="/search" variant="outline" size="sm">
+                <Button as={Link} to="/search" variant="outline" size="sm" className="w-full sm:w-auto">
                   <Search size={16} />
                   Find another service
                 </Button>

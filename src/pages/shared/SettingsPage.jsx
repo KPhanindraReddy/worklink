@@ -128,11 +128,11 @@ const SettingsPage = () => {
         <div className="page-shell max-w-[920px] space-y-5">
           <Card className="rounded-[30px]">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                 <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-brand-600 text-xl font-bold text-white shadow-glow">
                   {profileInitial}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="blue">{roleSummary}</Badge>
                     {isLabour ? (
@@ -143,24 +143,25 @@ const SettingsPage = () => {
                       />
                     ) : null}
                   </div>
-                  <h1 className="mt-2 text-2xl font-bold text-slate-950">
+                  <h1 className="mt-2 break-words text-xl font-bold text-slate-950 sm:text-2xl">
                     {formValues.fullName.trim() || 'Profile'}
                   </h1>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                 {isEditing ? (
                   <>
                     <Button
                       type="button"
                       variant="outline"
+                      className="flex-1 sm:flex-none"
                       onClick={cancelProfileEdit}
                       disabled={savingProfile}
                     >
                       <X size={16} />
                       Cancel
                     </Button>
-                    <Button onClick={saveProfile} disabled={savingProfile || !canSaveProfile}>
+                    <Button className="flex-1 sm:flex-none" onClick={saveProfile} disabled={savingProfile || !canSaveProfile}>
                       <CheckCircle2 size={16} />
                       {savingProfile ? 'Saving...' : 'Save'}
                     </Button>
@@ -364,9 +365,9 @@ const SettingsPage = () => {
 
           <Card className="rounded-[30px]">
             <h2 className="text-xl font-semibold text-slate-950">Settings</h2>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-4">
+            <div className="mt-5 grid gap-4 rounded-2xl bg-slate-50 px-4 py-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
               <p className="text-sm font-medium text-slate-600">Signed in to WorkLink</p>
-              <Button variant="danger" onClick={handleLogout}>
+              <Button variant="danger" className="w-full sm:w-auto" onClick={handleLogout}>
                 <LogOut size={16} />
                 Sign out
               </Button>

@@ -23,11 +23,11 @@ export const LabourCard = ({ labour, showMatchScore = false, onQuickBook, compac
 
   if (compact) {
     return (
-      <Card className="rounded-2xl p-2.5 md:p-3">
+      <Card className="overflow-hidden rounded-2xl p-2.5 md:p-3">
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
           <Link
             to={`/labour/${labour.id}`}
-            className="flex min-w-0 items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-100"
+            className="flex min-w-0 touch-manipulation items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-100"
           >
             <img
               src={labour.profilePhoto}
@@ -56,20 +56,25 @@ export const LabourCard = ({ labour, showMatchScore = false, onQuickBook, compac
             </div>
           </Link>
 
-          <div className="grid grid-cols-[auto_1fr] items-center gap-2 sm:flex sm:justify-end">
-            <Badge tone={availabilityTone[labour.availability] ?? 'slate'}>{labour.availability}</Badge>
+          <div className="grid grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] items-stretch gap-2 sm:flex sm:items-center sm:justify-end">
+            <Badge
+              tone={availabilityTone[labour.availability] ?? 'slate'}
+              className="justify-center py-2"
+            >
+              {labour.availability}
+            </Badge>
             {canQuickBook ? (
               <Button
                 type="button"
                 size="sm"
-                className="min-w-[104px]"
+                className="w-full min-w-0 whitespace-nowrap sm:w-auto sm:min-w-[104px]"
                 onClick={() => onQuickBook(labour)}
               >
                 <CalendarDays size={14} />
                 Send request
               </Button>
             ) : isClient && !isAvailable ? (
-              <Button type="button" size="sm" variant="outline" className="min-w-[104px]" disabled>
+              <Button type="button" size="sm" variant="outline" className="w-full min-w-0 whitespace-nowrap sm:w-auto sm:min-w-[104px]" disabled>
                 {labour.availability}
               </Button>
             ) : (
@@ -78,7 +83,7 @@ export const LabourCard = ({ labour, showMatchScore = false, onQuickBook, compac
                 to={isClient ? `/labour/${labour.id}` : '/auth?role=client&mode=signup'}
                 size="sm"
                 variant="outline"
-                className="min-w-[104px]"
+                className="w-full min-w-0 whitespace-nowrap sm:w-auto sm:min-w-[104px]"
               >
                 {isClient ? 'Book now' : 'Book as client'}
               </Button>
@@ -127,9 +132,9 @@ export const LabourCard = ({ labour, showMatchScore = false, onQuickBook, compac
 
       <p className="line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{labour.about}</p>
 
-      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-        <MapPin size={15} />
-        <span>{locationLabel}</span>
+      <div className="flex min-w-0 items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <MapPin size={15} className="flex-none" />
+        <span className="min-w-0 truncate">{locationLabel}</span>
       </div>
 
       <div className="mt-auto flex flex-wrap gap-2">

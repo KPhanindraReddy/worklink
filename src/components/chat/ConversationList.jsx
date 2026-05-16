@@ -2,11 +2,11 @@ import clsx from 'clsx';
 import { fromNow } from '../../utils/formatters';
 
 export const ConversationList = ({ conversations, activeConversationId, onSelect }) => (
-  <div className="surface-card h-full overflow-hidden p-2">
+  <div className="surface-card h-full max-h-72 overflow-hidden p-2 xl:max-h-none">
     <div className="border-b border-slate-200 px-3 py-3 dark:border-slate-800">
       <h2 className="text-base font-semibold text-slate-950 dark:text-white">Conversations</h2>
     </div>
-    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+    <div className="max-h-[13.5rem] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800 xl:max-h-none">
       {conversations.map((conversation) => (
         <button
           key={conversation.id}

@@ -241,34 +241,34 @@ export const QuickBookingDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 px-2 py-2 sm:items-center sm:px-4 sm:py-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
-        className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-slate-200 bg-white p-5 shadow-2xl md:p-6"
+        className="max-h-[calc(100dvh-0.75rem)] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-t-[24px] border border-slate-200 bg-white p-4 shadow-2xl sm:max-h-[92vh] sm:rounded-[32px] sm:p-5 md:p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="sticky top-0 z-10 -mx-4 -mt-4 flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-4 py-4 sm:static sm:m-0 sm:border-b-0 sm:p-0">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-700">Quick booking</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950">Book {labour.fullName}</h2>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950 sm:text-2xl">Book {labour.fullName}</h2>
             <p className="mt-2 text-sm text-slate-600">
               Send instantly or schedule a time, then wait for the labour response.
             </p>
           </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Close quick booking">
+          <Button type="button" variant="ghost" size="sm" className="h-10 w-10 flex-none p-0" onClick={onClose} aria-label="Close quick booking">
             <X size={18} />
           </Button>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[0.84fr_1.16fr]">
+        <div className="mt-5 grid gap-5 sm:mt-6 xl:grid-cols-[0.84fr_1.16fr] xl:gap-6">
           <div className="space-y-4">
-            <div className="rounded-[28px] border border-brand-200 bg-brand-50/70 p-5">
-              <div className="flex items-start gap-4">
+            <div className="rounded-[24px] border border-brand-200 bg-brand-50/70 p-4 sm:rounded-[28px] sm:p-5">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <img
                   src={labour.profilePhoto}
                   alt={labour.fullName}
-                  className="h-16 w-16 rounded-2xl object-cover"
+                  className="h-14 w-14 flex-none rounded-2xl object-cover sm:h-16 sm:w-16"
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -387,6 +387,7 @@ export const QuickBookingDialog = ({
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={handleRefreshLocation}
                   disabled={geolocation.loading}
                 >

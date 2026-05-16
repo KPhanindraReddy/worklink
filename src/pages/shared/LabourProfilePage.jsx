@@ -75,8 +75,8 @@ const LabourProfilePage = () => {
 
       <section className="section-space">
         <div className="page-shell grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card className="overflow-hidden rounded-[36px] p-0">
-            <div className="grid gap-6 p-6 md:grid-cols-[220px_1fr] md:p-8">
+          <Card className="overflow-hidden rounded-[28px] p-0 sm:rounded-[36px]">
+            <div className="grid gap-5 p-4 sm:p-6 md:grid-cols-[220px_1fr] md:p-8">
               <img
                 src={labour.profilePhoto}
                 alt={labour.fullName}
@@ -90,7 +90,7 @@ const LabourProfilePage = () => {
                   </Badge>
                   <VerificationBadge verified={labour.verified} />
                 </div>
-                <h1 className="mt-5 font-display text-4xl font-bold text-slate-950 dark:text-white">
+                <h1 className="mt-5 break-words font-display text-3xl font-bold text-slate-950 sm:text-4xl dark:text-white">
                   {labour.fullName}
                 </h1>
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-300">
@@ -105,35 +105,35 @@ const LabourProfilePage = () => {
                 <p className="mt-6 text-base leading-8 text-slate-600 dark:text-slate-300">
                   {labour.about}
                 </p>
-                <div className="mt-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                  <MapPin size={16} />
-                  {labour.currentLocation}
+                <div className="mt-6 flex min-w-0 items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                  <MapPin size={16} className="flex-none" />
+                  <span className="min-w-0 break-words">{labour.currentLocation}</span>
                 </div>
-                <div className="mt-8 flex flex-wrap gap-3">
+                <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
                   {isClient ? (
-                    <Button type="button" onClick={() => setSelectedQuickBookLabour(labour)}>
+                    <Button type="button" className="w-full sm:w-auto" onClick={() => setSelectedQuickBookLabour(labour)}>
                       <CalendarDays size={16} />
                       Send request
                     </Button>
                   ) : currentUser ? (
-                    <Button type="button" disabled>
+                    <Button type="button" className="w-full sm:w-auto" disabled>
                       Client account required
                     </Button>
                   ) : (
-                    <Button as={Link} to="/auth?role=client&mode=signup">
+                    <Button as={Link} to="/auth?role=client&mode=signup" className="w-full sm:w-auto">
                       Sign up as client to book
                     </Button>
                   )}
                   {isClient ? (
-                    <Button as={Link} to={`/chat?target=${labour.id}`} variant="outline">
+                    <Button as={Link} to={`/chat?target=${labour.id}`} variant="outline" className="w-full sm:w-auto">
                       Chat now
                     </Button>
                   ) : currentUser ? (
-                    <Button type="button" variant="outline" disabled>
+                    <Button type="button" variant="outline" className="w-full sm:w-auto" disabled>
                       Client account required
                     </Button>
                   ) : (
-                    <Button as={Link} to="/auth?role=client&mode=login" variant="outline">
+                    <Button as={Link} to="/auth?role=client&mode=login" variant="outline" className="w-full sm:w-auto">
                       Login as client
                     </Button>
                   )}
@@ -141,7 +141,7 @@ const LabourProfilePage = () => {
                     as="a"
                     href={canRevealContact ? `tel:${labour.phoneNumber}` : undefined}
                     variant="outline"
-                    className={!canRevealContact ? 'pointer-events-none opacity-60' : ''}
+                    className={`w-full sm:w-auto ${!canRevealContact ? 'pointer-events-none opacity-60' : ''}`}
                   >
                     <Phone size={16} />
                     {callButtonLabel}

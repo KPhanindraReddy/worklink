@@ -103,8 +103,8 @@ export const BottomDockNav = () => {
   );
 
   return (
-    <div className="app-bottom-dock pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3">
-      <nav className="pointer-events-auto w-full max-w-[21rem] rounded-[22px] border border-white/80 bg-white/94 p-1 shadow-[0_10px_28px_rgba(15,23,42,0.14)] backdrop-blur-2xl">
+    <div className="app-bottom-dock pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 lg:hidden">
+      <nav className="pointer-events-auto w-full max-w-[24rem] rounded-[22px] border border-white/80 bg-white/95 p-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.14)] backdrop-blur-2xl">
         <div
           className="grid gap-1"
           style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
@@ -119,7 +119,7 @@ export const BottomDockNav = () => {
                 to={item.to}
                 aria-current={isActive ? 'page' : undefined}
                 className={clsx(
-                  'rounded-[18px] border px-0.5 py-1.5 text-center transition duration-200',
+                  'min-h-[3.65rem] touch-manipulation rounded-[18px] border px-1 py-2 text-center transition duration-200',
                   isActive
                     ? 'border-slate-950 bg-slate-950 shadow-[0_10px_20px_rgba(15,23,42,0.2)]'
                     : 'border-transparent bg-white text-slate-500 hover:border-slate-200 hover:bg-slate-50'
@@ -127,15 +127,15 @@ export const BottomDockNav = () => {
               >
                 <span
                   className={clsx(
-                    'mx-auto grid h-6 w-6 place-items-center rounded-lg transition',
-                    isActive ? 'bg-white/12 text-white' : 'bg-slate-100 text-slate-500'
+                    'mx-auto grid h-7 w-7 place-items-center rounded-lg transition',
+                    isActive ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-500'
                   )}
                 >
-                  <Icon size={13} />
+                  <Icon size={15} />
                 </span>
                 <span
                   className={clsx(
-                    'mt-1 block min-h-[1.7rem] text-[8px] font-medium leading-[0.85rem]',
+                    'mt-1 block min-h-[1.55rem] text-[10px] font-semibold leading-tight',
                     isActive ? 'text-white' : 'text-slate-500'
                   )}
                 >

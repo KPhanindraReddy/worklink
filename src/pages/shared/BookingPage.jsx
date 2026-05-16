@@ -472,23 +472,23 @@ const BookingPage = () => {
         <div className="page-shell space-y-6">
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-6">
-              <Card className="rounded-[28px] border-slate-300 p-6 shadow-sm md:p-8">
+              <Card className="rounded-[28px] border-slate-300 p-4 shadow-sm sm:p-6 md:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-bold uppercase tracking-[0.25em] text-brand-700">
                       Client request
                     </p>
-                    <h1 className="mt-3 font-display text-4xl font-bold text-slate-950">
+                    <h1 className="mt-3 break-words font-display text-3xl font-bold text-slate-950 sm:text-4xl">
                       Request service
                     </h1>
                     <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-700">
                       Share the work, set the address, find available labour nearby, and send one clear request.
                     </p>
                   </div>
-                  <Badge tone={clientLocation ? 'emerald' : 'amber'}>
-                    {geolocation.loading
-                      ? 'Updating location'
-                      : clientLocation
+                    <Badge tone={clientLocation ? 'emerald' : 'amber'} className="justify-center">
+                      {geolocation.loading
+                        ? 'Updating location'
+                        : clientLocation
                         ? 'Saved location ready'
                         : 'Manual location ready'}
                   </Badge>
@@ -537,6 +537,7 @@ const BookingPage = () => {
                     <Button
                       type="button"
                       size="sm"
+                      className="w-full sm:w-auto"
                       onClick={() => setSelectedLabour(alternativeLabours[0])}
                     >
                       <RotateCcw size={15} />
@@ -561,7 +562,7 @@ const BookingPage = () => {
                         <Badge tone="slate">{formatDistanceKm(selectedLabour.distanceKm)}</Badge>
                       </div>
                     </div>
-                    <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline">
+                    <Button as={Link} to={`/labour/${selectedLabour.id}`} variant="outline" className="w-full sm:w-auto">
                       View profile
                     </Button>
                   </div>
@@ -584,7 +585,7 @@ const BookingPage = () => {
               ) : null}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                <Card className="rounded-[28px] border-slate-300 p-6 shadow-sm md:p-8">
+                <Card className="rounded-[28px] border-slate-300 p-4 shadow-sm sm:p-6 md:p-8">
                   <div className="grid gap-4 md:grid-cols-2">
                     <SelectField
                       label="Service name"
@@ -611,11 +612,12 @@ const BookingPage = () => {
                         onChange={(event) => updateFormValue('address', event.target.value)}
                         placeholder="House no, street, area, city"
                       />
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap sm:items-center">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={handleRefreshLocation}
                           disabled={geolocation.loading}
                         >
@@ -638,8 +640,8 @@ const BookingPage = () => {
                     />
                   </div>
 
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <Button type="button" onClick={() => handleSearchLabour()} disabled={searching || !canSearch || clientIsBusy}>
+                  <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
+                    <Button type="button" className="w-full sm:w-auto" onClick={() => handleSearchLabour()} disabled={searching || !canSearch || clientIsBusy}>
                       <Search size={16} />
                       {searching ? 'Checking...' : 'Check available labour'}
                     </Button>
@@ -694,7 +696,7 @@ const BookingPage = () => {
             </div>
 
             <div className="space-y-6">
-              <Card className="rounded-[28px] border-slate-300 p-6 shadow-sm md:p-8">
+              <Card className="rounded-[28px] border-slate-300 p-4 shadow-sm sm:p-6 md:p-8">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-950">Available labour</h2>
@@ -753,7 +755,7 @@ const BookingPage = () => {
                 </div>
               </Card>
 
-              <Card className="rounded-[28px] border-slate-300 p-6 shadow-sm md:p-8">
+              <Card className="rounded-[28px] border-slate-300 p-4 shadow-sm sm:p-6 md:p-8">
                 <div className="flex items-center gap-2">
                   <UserCheck size={18} className="text-emerald-600" />
                   <h2 className="text-xl font-semibold text-slate-950">Accepted labour</h2>
@@ -785,7 +787,7 @@ const BookingPage = () => {
                         {booking.status === 'accepted' && booking.startOtp ? (
                           <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4">
                             <p className="text-xs font-bold uppercase text-emerald-700">Start OTP</p>
-                            <p className="mt-2 font-display text-3xl font-bold tracking-[0.28em] text-slate-950">
+                            <p className="mt-2 font-display text-2xl font-bold tracking-[0.2em] text-slate-950 sm:text-3xl sm:tracking-[0.28em]">
                               {booking.startOtp}
                             </p>
                             <p className="mt-2 text-xs font-medium leading-5 text-slate-600">
@@ -797,7 +799,7 @@ const BookingPage = () => {
                             OTP verified. This job is in progress and your account is marked busy.
                           </div>
                         )}
-                        <div className="mt-4 flex flex-wrap gap-3">
+                        <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
                           <Button
                             as="a"
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.location || '')}`}
@@ -805,6 +807,7 @@ const BookingPage = () => {
                             rel="noreferrer"
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                           >
                             <Navigation size={15} />
                             View route
@@ -813,7 +816,7 @@ const BookingPage = () => {
                             as="a"
                             href={booking.labourPhoneNumber ? `tel:${booking.labourPhoneNumber}` : undefined}
                             size="sm"
-                            className={!booking.labourPhoneNumber ? 'pointer-events-none opacity-60' : ''}
+                            className={`w-full sm:w-auto ${!booking.labourPhoneNumber ? 'pointer-events-none opacity-60' : ''}`}
                           >
                             <Phone size={15} />
                             Call
@@ -823,6 +826,7 @@ const BookingPage = () => {
                             to="/chat"
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() =>
                               handleOpenChat({
                                 id: booking.labourId,
@@ -845,7 +849,7 @@ const BookingPage = () => {
                 </div>
               </Card>
 
-              <Card className="rounded-[28px] border-slate-300 p-6 shadow-sm md:p-8">
+              <Card className="rounded-[28px] border-slate-300 p-4 shadow-sm sm:p-6 md:p-8">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-brand-600" />
                   <h2 className="text-xl font-semibold text-slate-950">Request history</h2>
@@ -857,7 +861,7 @@ const BookingPage = () => {
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <h3 className="font-semibold text-slate-950">{booking.serviceType}</h3>
-                            <p className="text-sm font-medium text-slate-600">
+                            <p className="break-words text-sm font-medium text-slate-600">
                               {booking.labourName} - {booking.location}
                             </p>
                           </div>

@@ -10,89 +10,26 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { appleProvider, auth, db, googleProvider, isFirebaseConfigured } from '../firebase/config';
+import { appleProvider, googleProvider } from '../firebase/authProviders';
+import { auth } from '../firebase/config';
+import { isFirebaseConfigured } from '../firebase/env';
+import { db } from '../firebase/firestore';
+import { isHiddenAdminAccount } from '../utils/adminAccount';
 import { normalizeCoordinates } from '../utils/location';
+import {
+  clearRedirectContext,
+  getCurrentAppPath,
+  readRedirectContext,
+  storeRedirectContext
+} from '../utils/oauthRedirectContext';
 
 let recaptchaVerifier = null;
-const HIDDEN_ADMIN_EMAIL = 'admin@gmail.com';
-const HIDDEN_ADMIN_FULL_NAME = 'admin';
-const OAUTH_REDIRECT_CONTEXT_KEY = 'worklink.oauth.redirect';
 
 const shouldUseRedirectAuth = () => false;
-const getSessionStorage = () => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    return window.sessionStorage;
-  } catch (error) {
-    return null;
-  }
-};
-const storeRedirectContext = (context) => {
-  const storage = getSessionStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  try {
-    storage.setItem(OAUTH_REDIRECT_CONTEXT_KEY, JSON.stringify(context));
-  } catch (error) {
-    console.warn('WorkLink OAuth redirect context could not be stored:', error);
-  }
-};
-const readRedirectContext = () => {
-  const storage = getSessionStorage();
-
-  if (!storage) {
-    return null;
-  }
-
-  try {
-    const rawValue = storage.getItem(OAUTH_REDIRECT_CONTEXT_KEY);
-    return rawValue ? JSON.parse(rawValue) : null;
-  } catch (error) {
-    console.warn('WorkLink OAuth redirect context could not be restored:', error);
-    return null;
-  }
-};
-const clearRedirectContext = () => {
-  const storage = getSessionStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  try {
-    storage.removeItem(OAUTH_REDIRECT_CONTEXT_KEY);
-  } catch (error) {
-    console.warn('WorkLink OAuth redirect context could not be cleared:', error);
-  }
-};
-const getCurrentAppPath = () => {
-  if (typeof window === 'undefined') {
-    return '/auth';
-  }
-
-  const { hash, pathname, search } = window.location;
-  return `${pathname}${search}${hash}`;
-};
 const buildAvatarUrl = (fullName) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'WorkLink User')}&background=1d4ed8&color=ffffff`;
 const getCreatedAtValue = (user) =>
   user?.metadata?.creationTime ? new Date(user.metadata.creationTime) : serverTimestamp();
-const normalizeComparableValue = (value) => String(value ?? '').trim().toLowerCase();
-
-export const isHiddenAdminAccount = (user, formValues = {}, existingProfile = null) => {
-  const email = normalizeComparableValue(formValues.email || existingProfile?.email || user?.email);
-  const fullName = normalizeComparableValue(
-    formValues.fullName || existingProfile?.fullName || user?.displayName
-  );
-
-  return email === HIDDEN_ADMIN_EMAIL && fullName === HIDDEN_ADMIN_FULL_NAME;
-};
 
 const resolveAccountRole = (user, formValues = {}, existingProfile = null) => {
   if (existingProfile?.role === 'admin' || isHiddenAdminAccount(user, formValues, existingProfile)) {
@@ -136,7 +73,7 @@ const buildBaseProfile = (user, formValues = {}, existingProfile = null) => {
   const resolvedRole = resolveAccountRole(user, formValues, existingProfile);
   const isHiddenAdmin = isHiddenAdminAccount(user, formValues, existingProfile);
   const fullName = isHiddenAdmin
-    ? HIDDEN_ADMIN_FULL_NAME
+    ? 'admin'
     : formValues.fullName || existingProfile?.fullName || user.displayName || 'WorkLink User';
   const profilePhotoUrl = formValues.profilePhotoUrl || user.photoURL || buildAvatarUrl(fullName);
 
@@ -144,7 +81,7 @@ const buildBaseProfile = (user, formValues = {}, existingProfile = null) => {
     uid: user.uid,
     fullName,
     phoneNumber: formValues.phoneNumber || user.phoneNumber || '',
-    email: isHiddenAdmin ? HIDDEN_ADMIN_EMAIL : formValues.email || user.email || '',
+    email: isHiddenAdmin ? 'admin@gmail.com' : formValues.email || user.email || '',
     profilePhoto: profilePhotoUrl,
     role: resolvedRole,
     location: formValues.currentLocation || formValues.location || existingProfile?.location || '',

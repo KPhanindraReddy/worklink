@@ -183,13 +183,19 @@ export const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-      <div className="page-shell flex items-center justify-between gap-3 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link to={primaryPath} className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 text-white shadow-glow">
-              <BriefcaseBusiness size={20} />
+      <div className="page-shell flex items-center justify-between gap-2 py-2.5 sm:gap-3 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Link
+            to={primaryPath}
+            className="flex min-w-0 items-center gap-2 sm:gap-3"
+            onClick={() => setIsOpen(false)}
+          >
+            <div className="grid h-9 w-9 flex-none place-items-center rounded-2xl bg-brand-600 text-white shadow-glow sm:h-10 sm:w-10">
+              <BriefcaseBusiness size={18} />
             </div>
-            <p className="font-display text-lg font-bold text-slate-950">WorkLink</p>
+            <p className="truncate font-display text-base font-bold text-slate-950 sm:text-lg">
+              WorkLink
+            </p>
           </Link>
           {currentUser ? (
             <LiveLocationBadge
@@ -245,13 +251,13 @@ export const Navbar = () => {
               />
             </>
           ) : (
-            <Button as={Link} to="/auth" variant="primary">
+            <Button as={Link} to="/auth?role=client&mode=login" variant="primary">
               Sign in
             </Button>
           )}
         </div>
 
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:hidden">
           {currentUser ? (
             <>
               {quickLinks.map((link) => {
@@ -279,7 +285,17 @@ export const Navbar = () => {
                 profileName={userProfile?.fullName}
               />
             </>
-          ) : null}
+          ) : (
+            <Button
+              as={Link}
+              to="/auth?role=client&mode=login"
+              size="sm"
+              className="px-2.5"
+              onClick={() => setIsOpen(false)}
+            >
+              Login
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -336,7 +352,12 @@ export const Navbar = () => {
               </span>
             </Link>
           ) : (
-            <Button as={Link} to="/auth" className="w-full" onClick={() => setIsOpen(false)}>
+            <Button
+              as={Link}
+              to="/auth?role=client&mode=login"
+              className="w-full"
+              onClick={() => setIsOpen(false)}
+            >
               Sign in
             </Button>
           )}

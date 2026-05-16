@@ -1,5 +1,6 @@
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../firebase/config';
+import { isFirebaseConfigured } from '../firebase/env';
+import { db } from '../firebase/firestore';
 
 export const getUserProfile = async (uid) => {
   if (!uid || !isFirebaseConfigured || !db) {

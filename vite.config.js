@@ -3,14 +3,13 @@ import react from '@vitejs/plugin-react';
 
 const vendorChunkGroups = [
   ['react-vendor', ['react', 'react-dom', 'scheduler']],
-  ['router', ['react-router', '@remix-run']],
-  ['firebase', ['firebase']],
+  ['router', ['react-router', 'react-router-dom', '@remix-run']],
+  ['firebase', ['firebase', '@firebase']],
   ['i18n', ['i18next', 'react-i18next']],
   [
     'ui-vendor',
     ['lucide-react', '@headlessui', 'framer-motion', 'clsx', 'react-hot-toast', 'react-helmet-async']
-  ],
-  ['date-utils', ['date-fns']]
+  ]
 ];
 
 const resolveManualChunk = (id) => {

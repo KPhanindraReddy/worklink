@@ -1,16 +1,38 @@
+import { Suspense, lazy } from 'react';
+import clsx from 'clsx';
 import { Footer } from './Footer';
 import { BottomDockNav } from './BottomDockNav';
 import { Navbar } from './Navbar';
-import { RequestRoutingController } from '../booking/RequestRoutingController';
+import { useAuth } from '../../context/AuthContext';
 
-export const AppShell = ({ children }) => (
+const RequestRoutingController = lazy(() =>
+  import('../booking/RequestRoutingController').then((module) => ({
+    default: module.RequestRoutingController
+  }))
+);
+
+const LazyRequestRoutingController = () => {
+  const { currentUser, userProfile } = useAuth();
+
+  if (!currentUser || !userProfile?.role) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <RequestRoutingController />
+    </Suspense>
+  );
+};
+
+export const AppShell = ({ children, contentClassName, hideBottomDock = false, hideFooter = false }) => (
   <div className="min-h-screen">
     <Navbar />
-    <RequestRoutingController />
-    <div className="app-shell-content">
+    <LazyRequestRoutingController />
+    <div className={clsx(!hideBottomDock && 'app-shell-content', contentClassName)}>
       <main>{children}</main>
-      <Footer />
+      {hideFooter ? null : <Footer />}
     </div>
-    <BottomDockNav />
+    {hideBottomDock ? null : <BottomDockNav />}
   </div>
 );

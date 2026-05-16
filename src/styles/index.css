@@ -17,15 +17,21 @@
 
   html {
     scroll-behavior: smooth;
+    width: 100%;
+    overflow-x: clip;
   }
 
   body {
     @apply bg-[rgb(var(--bg))] text-[rgb(var(--text))] font-body antialiased;
+    width: 100%;
     min-height: 100vh;
+    overflow-x: clip;
   }
 
   #root {
+    width: 100%;
     min-height: 100vh;
+    overflow-x: clip;
   }
 
   a {
@@ -62,6 +68,7 @@
 @layer components {
   .page-shell {
     @apply mx-auto w-full max-w-[1180px] px-4 sm:px-5 lg:px-6;
+    max-width: min(1180px, 100%);
   }
 
   .glass-panel {
@@ -73,7 +80,7 @@
   }
 
   .section-space {
-    @apply py-8 md:py-10;
+    @apply py-6 md:py-8;
   }
 
   .text-gradient {

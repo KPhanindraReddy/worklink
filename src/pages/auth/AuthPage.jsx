@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronUp, House } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Apple, BriefcaseBusiness, ChevronDown, ChevronUp, House, UserRound } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import clsx from 'clsx';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { InputField } from '../../components/common/InputField';
@@ -9,22 +10,38 @@ import { PageSEO } from '../../components/common/PageSEO';
 import { Skeleton } from '../../components/common/Skeleton';
 import { AppShell } from '../../components/layout/AppShell';
 import { useAuth } from '../../context/AuthContext';
-import { isHiddenAdminAccount } from '../../services/authService';
-import { getUserProfile } from '../../services/userService';
+import { isHiddenAdminAccount } from '../../utils/adminAccount';
 import { isProfileComplete, resolvePostAuthPath } from '../../utils/authFlow';
 import { roles } from '../../utils/constants';
 import { getFirebaseErrorMessage } from '../../utils/firebaseErrors';
+import { readRedirectContext } from '../../utils/oauthRedirectContext';
 
 const initialFormState = {
   fullName: '',
   phoneNumber: '',
   email: '',
   password: '',
-  role: ''
+  role: 'client'
 };
+
 const providerNames = {
   'google.com': 'Google',
   'apple.com': 'Apple'
+};
+
+const roleCopy = {
+  client: {
+    icon: UserRound,
+    label: 'Client',
+    otherLabel: 'Labour worker',
+    otherRole: 'labour'
+  },
+  labour: {
+    icon: BriefcaseBusiness,
+    label: 'Labour worker',
+    otherLabel: 'Client',
+    otherRole: 'client'
+  }
 };
 
 const GoogleIcon = () => (
@@ -57,17 +74,20 @@ const getStoredFromLocation = (from) =>
       }
     : null;
 
+const resolveInitialRole = (queryRole) =>
+  roles.some((item) => item.value === queryRole) ? queryRole : 'client';
+
+const resolveInitialMode = (queryMode) => (queryMode === 'signup' ? 'signup' : 'login');
+
 const AuthPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryMode = searchParams.get('mode');
   const queryRole = searchParams.get('role');
-  const initialRole = roles.some((item) => item.value === queryRole) ? queryRole : '';
   const {
     currentUser,
     userProfile,
-    loading,
     isFirebaseConfigured,
     registerWithEmail,
     loginWithApple,
@@ -79,36 +99,50 @@ const AuthPage = () => {
     createBaseUserProfile
   } = useAuth();
 
-  const [mode, setMode] = useState(queryMode === 'login' ? 'login' : 'signup');
-  const [role, setRole] = useState(initialRole);
-  const [formValues, setFormValues] = useState({
+  const [mode, setMode] = useState(() => resolveInitialMode(queryMode));
+  const [role, setRole] = useState(() => resolveInitialRole(queryRole));
+  const [formValues, setFormValues] = useState(() => ({
     ...initialFormState,
-    role: initialRole
-  });
+    role: resolveInitialRole(queryRole)
+  }));
   const [otp, setOtp] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showOtpOptions, setShowOtpOptions] = useState(false);
-  const [processingRedirectAuth, setProcessingRedirectAuth] = useState(true);
-  const hasProcessedRedirectRef = useRef(false);
+  const [processingRedirectAuth, setProcessingRedirectAuth] = useState(() =>
+    Boolean(readRedirectContext())
+  );
+
+  const activeRole = roleCopy[role] ?? roleCopy.client;
+  const ActiveRoleIcon = activeRole.icon;
+  const otherRole = roleCopy[activeRole.otherRole] ?? roleCopy.labour;
+  const OtherRoleIcon = otherRole.icon;
+  const actionLabel = mode === 'signup' ? 'Register' : 'Login';
+  const canSubmitEmail =
+    mode === 'signup'
+      ? Boolean(formValues.fullName.trim() && formValues.email.trim() && formValues.password.trim())
+      : Boolean(formValues.email.trim() && formValues.password.trim());
+
+  const pageTitle = useMemo(
+    () => `${activeRole.label} ${actionLabel.toLowerCase()}`,
+    [activeRole.label, actionLabel]
+  );
 
   useEffect(() => {
-    if (!loading && !processingRedirectAuth && currentUser && !submitting) {
+    if (!processingRedirectAuth && currentUser && !submitting) {
       navigate(resolvePostAuthPath({ profile: userProfile, fallbackRole: role }), {
         replace: true
       });
     }
-  }, [currentUser, loading, navigate, processingRedirectAuth, role, submitting, userProfile]);
+  }, [currentUser, navigate, processingRedirectAuth, role, submitting, userProfile]);
 
   useEffect(() => {
-    if (queryMode === 'login' || queryMode === 'signup') {
-      setMode(queryMode);
-    }
+    const nextMode = resolveInitialMode(queryMode);
+    const nextRole = resolveInitialRole(queryRole);
 
-    if (roles.some((item) => item.value === queryRole)) {
-      setRole(queryRole);
-      setFormValues((prev) => ({ ...prev, role: queryRole }));
-    }
+    setMode(nextMode);
+    setRole(nextRole);
+    setFormValues((prev) => ({ ...prev, role: nextRole }));
   }, [queryMode, queryRole]);
 
   const redirectAfterAuth = async (
@@ -142,6 +176,7 @@ const AuthPage = () => {
   };
 
   const ensureProfileRecord = async (user, { forceBaseWrite = false, fallbackRole = role } = {}) => {
+    const { getUserProfile } = await import('../../services/userService');
     let profile = await getUserProfile(user.uid);
     const shouldUpgradeHiddenAdmin =
       isHiddenAdminAccount(
@@ -177,11 +212,9 @@ const AuthPage = () => {
     let isMounted = true;
 
     const resumeRedirectAuth = async () => {
-      if (hasProcessedRedirectRef.current) {
+      if (!processingRedirectAuth) {
         return;
       }
-
-      hasProcessedRedirectRef.current = true;
 
       if (!isFirebaseConfigured) {
         if (isMounted) {
@@ -241,35 +274,18 @@ const AuthPage = () => {
       ...(key === 'role' ? { role: value } : {})
     }));
 
-  const canSubmitEmail =
-    mode === 'signup'
-      ? Boolean(
-          role &&
-            formValues.fullName.trim() &&
-            formValues.email.trim() &&
-            formValues.password.trim()
-        )
-      : Boolean(formValues.email.trim() && formValues.password.trim());
-
-  const selectedRole = roles.find((item) => item.value === role);
-
   const updateAuthUrl = (nextRole = role, nextMode = mode) => {
     const nextParams = new URLSearchParams(searchParams);
-
-    if (nextRole) {
-      nextParams.set('role', nextRole);
-    } else {
-      nextParams.delete('role');
-    }
-
+    nextParams.set('role', nextRole);
     nextParams.set('mode', nextMode);
     navigate(`/auth?${nextParams.toString()}`, { replace: true, state: location.state });
   };
 
-  const handleRoleSelect = (nextRole) => {
+  const switchAccount = (nextRole, nextMode = mode) => {
     setRole(nextRole);
-    handleChange('role', nextRole);
-    updateAuthUrl(nextRole, mode);
+    setMode(nextMode);
+    setFormValues((prev) => ({ ...prev, role: nextRole }));
+    updateAuthUrl(nextRole, nextMode);
   };
 
   const handleModeSelect = (nextMode) => {
@@ -277,29 +293,8 @@ const AuthPage = () => {
     updateAuthUrl(role, nextMode);
   };
 
-  const requireRoleSelection = ({
-    allowWithoutRole = false,
-    message = 'Choose Client or Labour before continuing.'
-  } = {}) => {
-    if (role || allowWithoutRole) {
-      return true;
-    }
-
-    toast.error(message);
-    return false;
-  };
-
   const handleEmailAuth = async (event) => {
     event.preventDefault();
-
-    if (
-      !requireRoleSelection({
-        allowWithoutRole: mode === 'login'
-      })
-    ) {
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -343,15 +338,6 @@ const AuthPage = () => {
   };
 
   const handleGoogleAuth = async () => {
-    if (
-      !requireRoleSelection({
-        allowWithoutRole: mode === 'login',
-        message: 'Choose Client or Labour before continuing with Google.'
-      })
-    ) {
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -386,15 +372,6 @@ const AuthPage = () => {
   };
 
   const handleAppleAuth = async () => {
-    if (
-      !requireRoleSelection({
-        allowWithoutRole: mode === 'login',
-        message: 'Choose Client or Labour before continuing with Apple.'
-      })
-    ) {
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -429,14 +406,6 @@ const AuthPage = () => {
   };
 
   const handleSendOtp = async () => {
-    if (
-      !requireRoleSelection({
-        message: 'Choose Client or Labour before continuing with phone OTP.'
-      })
-    ) {
-      return;
-    }
-
     if (!formValues.phoneNumber.trim()) {
       toast.error('Enter your phone number before requesting an OTP.');
       return;
@@ -457,14 +426,6 @@ const AuthPage = () => {
 
   const handleVerifyOtp = async () => {
     if (!confirmationResult) {
-      return;
-    }
-
-    if (
-      !requireRoleSelection({
-        message: 'Choose Client or Labour before continuing with phone OTP.'
-      })
-    ) {
       return;
     }
 
@@ -491,19 +452,19 @@ const AuthPage = () => {
     }
   };
 
-  if (loading || processingRedirectAuth || (currentUser && !submitting)) {
+  if (processingRedirectAuth) {
     return (
-      <AppShell>
+      <AppShell hideBottomDock hideFooter>
         <PageSEO
           title="Login / Signup"
           description="Join WorkLink as labour or client using phone OTP, Google login, Apple login, or email and password."
         />
-        <section className="section-space">
-          <div className="page-shell max-w-3xl">
-            <Card className="rounded-[28px] p-6 md:p-8">
-              <Skeleton className="h-9 w-48" />
-              <Skeleton className="mt-6 h-12 w-full" />
-              <Skeleton className="mt-4 h-12 w-full" />
+        <section className="bg-slate-50 py-6 sm:py-8">
+          <div className="mx-auto w-full max-w-xl px-3 sm:px-5">
+            <Card className="min-w-0 rounded-2xl p-3 sm:p-5">
+              <Skeleton className="h-9 w-40" />
+              <Skeleton className="mt-4 h-11 w-full" />
+              <Skeleton className="mt-3 h-11 w-full" />
             </Card>
           </div>
         </section>
@@ -512,194 +473,217 @@ const AuthPage = () => {
   }
 
   return (
-    <AppShell>
+    <AppShell hideBottomDock hideFooter>
       <PageSEO
         title="Login / Signup"
         description="Join WorkLink as labour or client using phone OTP, Google login, Apple login, or email and password."
       />
 
-      <section className="section-space">
-        <div className="page-shell max-w-3xl">
-          <Card className="rounded-[28px] p-6 md:p-8">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="mb-4">
-                  <Button as={Link} to="/" type="button" variant="outline" size="sm">
-                    <House size={15} />
-                    Home
-                  </Button>
-                </div>
-                <h2 className="text-3xl font-bold text-slate-950">
-                  {role ? `${selectedRole?.label} ${mode}` : 'Continue to WorkLink'}
-                </h2>
+      <section className="bg-slate-50 py-4 sm:py-6">
+        <div className="mx-auto w-full max-w-xl px-3 sm:px-5">
+          <Card className="min-w-0 rounded-2xl p-3 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button as={Link} to="/" type="button" variant="outline" size="sm">
+                <House size={15} />
+                Home
+              </Button>
+              <div className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-auto">
+                {['login', 'signup'].map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={clsx(
+                      'rounded-lg px-2 py-2 text-sm font-semibold transition sm:px-3',
+                      mode === item
+                        ? 'bg-white text-slate-950 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900'
+                    )}
+                    onClick={() => handleModeSelect(item)}
+                  >
+                    {item === 'signup' ? 'Register' : 'Login'}
+                  </button>
+                ))}
               </div>
-              <div className="flex gap-2">
+            </div>
+
+            <div className="mt-5 flex items-center gap-3">
+              <div className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-slate-950 text-white sm:h-11 sm:w-11">
+                <ActiveRoleIcon size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600 sm:text-xs">
+                  {activeRole.label}
+                </p>
+                <h1 className="text-xl font-bold text-slate-950 sm:text-2xl">{pageTitle}</h1>
+              </div>
+            </div>
+
+            {!isFirebaseConfigured ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[13px] font-medium text-amber-900">
+                Firebase keys missing. Authentication is disabled.
+              </div>
+            ) : null}
+
+            <form className="mt-5 space-y-3" onSubmit={handleEmailAuth}>
+              {mode === 'signup' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <InputField
+                    label="Full name"
+                    value={formValues.fullName}
+                    onChange={(event) => handleChange('fullName', event.target.value)}
+                    placeholder="Your full name"
+                  />
+                  <InputField
+                    label="Phone number"
+                    value={formValues.phoneNumber}
+                    onChange={(event) => handleChange('phoneNumber', event.target.value)}
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InputField
+                  label="Email"
+                  type="email"
+                  value={formValues.email}
+                  onChange={(event) => handleChange('email', event.target.value)}
+                  placeholder="name@example.com"
+                />
+                <InputField
+                  label="Password"
+                  type="password"
+                  value={formValues.password}
+                  onChange={(event) => handleChange('password', event.target.value)}
+                  placeholder="Minimum 6 characters"
+                />
+              </div>
+
+              <Button type="submit" size="lg" className="w-full" disabled={submitting || !canSubmitEmail}>
+                {submitting ? 'Please wait...' : `${actionLabel} as ${activeRole.label}`}
+              </Button>
+            </form>
+
+            <div className="my-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                or
+              </span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <div className="grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Button
                   type="button"
-                  variant={mode === 'login' ? 'primary' : 'outline'}
-                  onClick={() => handleModeSelect('login')}
+                  variant="outline"
+                  size="lg"
+                  onClick={handleGoogleAuth}
+                  disabled={submitting}
+                >
+                  <GoogleIcon />
+                  Google
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={handleAppleAuth}
+                  disabled={submitting}
+                >
+                  <Apple size={16} />
+                  Apple
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-between"
+                  onClick={() => setShowOtpOptions((prev) => !prev)}
+                >
+                  <span>Phone OTP</span>
+                  {showOtpOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </Button>
+
+                {showOtpOptions || confirmationResult ? (
+                  <div className="mt-3 grid gap-3 px-1 pb-1">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <InputField
+                        label="Phone number"
+                        value={formValues.phoneNumber}
+                        onChange={(event) => handleChange('phoneNumber', event.target.value)}
+                        placeholder="+91 98765 43210"
+                      />
+                      <div className="self-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          onClick={handleSendOtp}
+                          disabled={submitting || !formValues.phoneNumber.trim()}
+                        >
+                          Send OTP
+                        </Button>
+                      </div>
+                    </div>
+
+                    {confirmationResult ? (
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <InputField
+                          label="Enter OTP"
+                          value={otp}
+                          onChange={(event) => setOtp(event.target.value)}
+                          placeholder="6 digit code"
+                        />
+                        <div className="self-end">
+                          <Button
+                            type="button"
+                            className="w-full sm:w-auto"
+                            onClick={handleVerifyOtp}
+                            disabled={submitting || !otp.trim()}
+                          >
+                            Verify OTP
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div id="recaptcha-container" />
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-white text-brand-700 shadow-sm">
+                  <OtherRoleIcon size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-950">{activeRole.otherLabel}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => switchAccount(activeRole.otherRole, 'login')}
                 >
                   Login
                 </Button>
                 <Button
                   type="button"
-                  variant={mode === 'signup' ? 'primary' : 'outline'}
-                  onClick={() => handleModeSelect('signup')}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => switchAccount(activeRole.otherRole, 'signup')}
                 >
-                  Signup
+                  Register
                 </Button>
               </div>
             </div>
-
-            {!isFirebaseConfigured ? (
-              <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                Firebase environment variables are not configured yet. The UI is ready, and live authentication will start working after you add your Firebase keys to `.env`.
-              </div>
-            ) : null}
-
-            {!role ? (
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {roles.map((item) => (
-                  <Button
-                    key={item.value}
-                    type="button"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => handleRoleSelect(item.value)}
-                  >
-                    Continue with {item.label}
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <>
-                <form className="mt-8 space-y-4" onSubmit={handleEmailAuth}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {mode === 'signup' ? (
-                      <InputField
-                        label="Full name"
-                        value={formValues.fullName}
-                        onChange={(event) => handleChange('fullName', event.target.value)}
-                        placeholder="Your full name"
-                      />
-                    ) : null}
-                    <InputField
-                      label="Phone number"
-                      value={formValues.phoneNumber}
-                      onChange={(event) => handleChange('phoneNumber', event.target.value)}
-                      placeholder="+91 98765 43210"
-                    />
-                    <InputField
-                      label="Email"
-                      type="email"
-                      value={formValues.email}
-                      onChange={(event) => handleChange('email', event.target.value)}
-                      placeholder="name@example.com"
-                    />
-                    <InputField
-                      label="Password"
-                      type="password"
-                      value={formValues.password}
-                      onChange={(event) => handleChange('password', event.target.value)}
-                      placeholder="Minimum 6 characters"
-                    />
-                  </div>
-
-                  <Button type="submit" size="lg" className="w-full" disabled={submitting || !canSubmitEmail}>
-                    {submitting ? 'Please wait...' : mode === 'signup' ? 'Continue with Email' : 'Login with Email'}
-                  </Button>
-                </form>
-
-                <div className="my-6 flex items-center gap-4">
-                  <div className="h-px flex-1 bg-slate-200" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-
-                <div className="grid gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={handleGoogleAuth}
-                    disabled={submitting}
-                  >
-                    <GoogleIcon />
-                    Continue with Google
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={handleAppleAuth}
-                    disabled={submitting}
-                  >
-                    Continue with Apple
-                  </Button>
-
-                  <div className="rounded-3xl border border-slate-200 p-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full justify-between"
-                      onClick={() => setShowOtpOptions((prev) => !prev)}
-                    >
-                      <span>Phone OTP login (optional)</span>
-                      {showOtpOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </Button>
-
-                    {showOtpOptions || confirmationResult ? (
-                      <div className="mt-4">
-                        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                          <InputField
-                            label="Phone OTP login"
-                            value={formValues.phoneNumber}
-                            onChange={(event) => handleChange('phoneNumber', event.target.value)}
-                            placeholder="+91 98765 43210"
-                          />
-                          <div className="self-end">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="w-full md:w-auto"
-                              onClick={handleSendOtp}
-                              disabled={submitting || !formValues.phoneNumber.trim()}
-                            >
-                              Send OTP
-                            </Button>
-                          </div>
-                        </div>
-
-                        {confirmationResult ? (
-                          <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
-                            <InputField
-                              label="Enter OTP"
-                              value={otp}
-                              onChange={(event) => setOtp(event.target.value)}
-                              placeholder="6 digit code"
-                            />
-                            <div className="self-end">
-                              <Button
-                                type="button"
-                                className="w-full md:w-auto"
-                                onClick={handleVerifyOtp}
-                                disabled={submitting || !otp.trim()}
-                              >
-                                Verify OTP
-                              </Button>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <div id="recaptcha-container" />
-                  </div>
-                </div>
-              </>
-            )}
           </Card>
         </div>
       </section>

@@ -12,7 +12,8 @@ import {
   updateDoc,
   where
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../firebase/config';
+import { isFirebaseConfigured } from '../firebase/env';
+import { db } from '../firebase/firestore';
 import { workCategories } from '../utils/constants';
 
 const DIRECTORY_PAGE_SIZE = 18;

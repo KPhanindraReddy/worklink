@@ -7,7 +7,8 @@ import {
   serverTimestamp,
   where
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../firebase/config';
+import { isFirebaseConfigured } from '../firebase/env';
+import { db } from '../firebase/firestore';
 import { parseDateValue } from '../utils/formatters';
 
 const sortReviewsByCreatedAtDesc = (items) =>

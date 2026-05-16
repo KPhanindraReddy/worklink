@@ -11,7 +11,8 @@ import {
   setDoc,
   where
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../firebase/config';
+import { isFirebaseConfigured } from '../firebase/env';
+import { db } from '../firebase/firestore';
 import {
   labourMatchesCategory,
   labourMatchesServiceQuery,

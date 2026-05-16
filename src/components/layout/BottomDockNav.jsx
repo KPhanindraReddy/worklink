@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Bell, History, House, MessageCircle, Search, UserRound } from 'lucide-react';
+import { Bell, BriefcaseBusiness, History, House, MessageCircle, Search, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -70,7 +70,7 @@ export const buildBottomDockItems = ({ currentUser, userProfile }) => {
       matchers: currentUser ? [homeTarget] : ['/']
     },
     {
-      label: 'Search Service',
+      label: 'Search',
       to: '/search',
       icon: Search,
       matchers: [
@@ -80,15 +80,15 @@ export const buildBottomDockItems = ({ currentUser, userProfile }) => {
       ]
     },
     {
-      label: 'Services',
-      to: currentUser ? '/recent-services' : '/auth',
-      icon: History,
+      label: currentUser ? 'Services' : 'Client',
+      to: currentUser ? '/recent-services' : '/auth?role=client&mode=login',
+      icon: currentUser ? History : UserRound,
       matchers: currentUser ? ['/recent-services'] : ['/auth']
     },
     {
-      label: 'Profile',
-      to: currentUser ? '/settings' : '/auth',
-      icon: UserRound,
+      label: currentUser ? 'Profile' : 'Labour',
+      to: currentUser ? '/settings' : '/auth?role=labour&mode=login',
+      icon: currentUser ? UserRound : BriefcaseBusiness,
       matchers: currentUser ? ['/settings', '/complete-profile*'] : ['/auth']
     }
   ];

@@ -1,15 +1,12 @@
 import { Link } from 'react-router-dom';
 
 export const Footer = () => (
-  <footer className="border-t border-slate-200 bg-white py-6">
-    <div className="page-shell grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+  <footer className="border-t border-slate-200 bg-white py-5">
+    <div className="page-shell grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
       <div>
-        <h3 className="font-display text-xl font-bold text-slate-950">WorkLink</h3>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-          Nearby labour booking with direct requests, OTP start verification, and clear profile trust signals.
-        </p>
+        <h3 className="font-display text-lg font-bold text-slate-950">WorkLink</h3>
       </div>
-      <div className="grid gap-2 text-sm text-slate-600 md:justify-items-end">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-slate-600 md:justify-end">
         <Link to="/about">About WorkLink</Link>
         <Link to="/settings">Settings</Link>
         <Link to="/notifications">Notifications</Link>

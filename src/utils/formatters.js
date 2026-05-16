@@ -1,5 +1,3 @@
-import { format, formatDistanceToNow, isValid, parse, parseISO } from 'date-fns';
-
 export const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -7,14 +5,81 @@ export const formatCurrency = (amount) =>
     maximumFractionDigits: 0
   }).format(Number(amount) || 0);
 
-const appointmentPatterns = [
-  "yyyy-MM-dd'T'HH:mm:ss.SSSxxx",
-  "yyyy-MM-dd'T'HH:mm:ssxxx",
-  "yyyy-MM-dd'T'HH:mm:ss",
-  'yyyy-MM-dd hh:mm a',
-  'yyyy-MM-dd h:mm a',
-  'yyyy-MM-dd HH:mm'
-];
+const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const localDateTimePattern =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?\s*(AM|PM)?)?$/i;
+
+const isValidDate = (value) => value instanceof Date && !Number.isNaN(value.getTime());
+const pad2 = (value) => String(value).padStart(2, '0');
+
+const parseLocalDateTime = (value) => {
+  const match = localDateTimePattern.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const [
+    ,
+    yearValue,
+    monthValue,
+    dayValue,
+    hourValue = '0',
+    minuteValue = '0',
+    secondValue = '0',
+    millisecondValue = '0',
+    periodValue
+  ] = match;
+  const year = Number(yearValue);
+  const month = Number(monthValue);
+  const day = Number(dayValue);
+  let hour = Number(hourValue);
+  const minute = Number(minuteValue);
+  const second = Number(secondValue);
+  const millisecond = Number(millisecondValue.padEnd(3, '0'));
+
+  if (periodValue) {
+    const period = periodValue.toUpperCase();
+    hour %= 12;
+
+    if (period === 'PM') {
+      hour += 12;
+    }
+  }
+
+  const date = new Date(year, month - 1, day, hour, minute, second, millisecond);
+
+  if (
+    !isValidDate(date) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
+const formatWithPattern = (date, pattern) => {
+  const hours = date.getHours();
+  const hour12 = hours % 12 || 12;
+  const tokens = {
+    yyyy: String(date.getFullYear()),
+    MMM: shortMonths[date.getMonth()],
+    MM: pad2(date.getMonth() + 1),
+    dd: pad2(date.getDate()),
+    HH: pad2(hours),
+    hh: pad2(hour12),
+    mm: pad2(date.getMinutes()),
+    ss: pad2(date.getSeconds()),
+    a: hours >= 12 ? 'PM' : 'AM'
+  };
+
+  return pattern.replace(/yyyy|MMM|MM|dd|HH|hh|mm|ss|a/g, (token) => tokens[token] ?? token);
+};
 
 export const parseDateValue = (value) => {
   if (!value) {
@@ -23,16 +88,23 @@ export const parseDateValue = (value) => {
 
   if (value?.toDate) {
     const timestampDate = value.toDate();
-    return isValid(timestampDate) ? timestampDate : null;
+    return isValidDate(timestampDate) ? timestampDate : null;
   }
 
   if (value instanceof Date) {
-    return isValid(value) ? value : null;
+    return isValidDate(value) ? value : null;
+  }
+
+  if (typeof value === 'object' && Number.isFinite(value.seconds)) {
+    const timestampDate = new Date(
+      Number(value.seconds) * 1000 + Math.floor(Number(value.nanoseconds || 0) / 1000000)
+    );
+    return isValidDate(timestampDate) ? timestampDate : null;
   }
 
   if (typeof value === 'number') {
     const numericDate = new Date(value);
-    return isValid(numericDate) ? numericDate : null;
+    return isValidDate(numericDate) ? numericDate : null;
   }
 
   if (typeof value === 'string') {
@@ -42,20 +114,13 @@ export const parseDateValue = (value) => {
       return null;
     }
 
-    const isoDate = parseISO(trimmedValue);
-    if (isValid(isoDate)) {
-      return isoDate;
-    }
-
-    for (const pattern of appointmentPatterns) {
-      const parsedDate = parse(trimmedValue, pattern, new Date());
-      if (isValid(parsedDate)) {
-        return parsedDate;
-      }
+    const localDate = parseLocalDateTime(trimmedValue);
+    if (localDate) {
+      return localDate;
     }
 
     const fallbackDate = new Date(trimmedValue);
-    return isValid(fallbackDate) ? fallbackDate : null;
+    return isValidDate(fallbackDate) ? fallbackDate : null;
   }
 
   return null;
@@ -82,7 +147,7 @@ export const formatDate = (value, pattern = 'dd MMM yyyy, hh:mm a') => {
     return 'Not available';
   }
 
-  return format(date, pattern);
+  return formatWithPattern(date, pattern);
 };
 
 export const fromNow = (value) => {
@@ -95,7 +160,24 @@ export const fromNow = (value) => {
     return 'just now';
   }
 
-  return formatDistanceToNow(date, { addSuffix: true });
+  const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const absoluteSeconds = Math.abs(diffSeconds);
+  const units = [
+    ['year', 31536000],
+    ['month', 2592000],
+    ['week', 604800],
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60],
+    ['second', 1]
+  ];
+  const [unit, secondsPerUnit] = units.find(([, seconds]) => absoluteSeconds >= seconds) ?? [
+    'second',
+    1
+  ];
+  const valueInUnit = Math.round(diffSeconds / secondsPerUnit);
+
+  return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(valueInUnit, unit);
 };
 
 export const formatDistanceKm = (value) => {

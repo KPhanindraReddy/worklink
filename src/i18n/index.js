@@ -23,7 +23,7 @@ const resources = {
           'WorkLink connects clients with skilled labour professionals through instant search, booking, real-time chat, and verified work history.',
         primaryCta: 'Join as Labour',
         secondaryCta: 'Join as Client',
-        searchPlaceholder: 'Search electricians, plumbers, painters, and more',
+        searchPlaceholder: 'Search service or worker',
         sectionTitle: 'Find the right worker without the chaos',
         howTitle: 'How WorkLink works'
       },

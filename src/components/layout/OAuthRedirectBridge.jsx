@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getPendingRedirectContext } from '../../services/authService';
+import { readRedirectContext } from '../../utils/oauthRedirectContext';
 
 const isAuthResumePath = (path) =>
   path === '/auth' || path.startsWith('/auth?') || path.startsWith('/auth#');
@@ -29,7 +29,7 @@ export const OAuthRedirectBridge = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const pendingContext = getPendingRedirectContext();
+    const pendingContext = readRedirectContext();
 
     if (!pendingContext || location.pathname === '/auth') {
       return;

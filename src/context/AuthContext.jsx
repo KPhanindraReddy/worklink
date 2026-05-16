@@ -1,21 +1,23 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '../firebase/config';
-import {
-  beginAppleLogin,
-  beginGoogleLogin,
-  consumeRedirectAuthResult,
-  createBaseUserProfile,
-  createOrUpdateUserProfile,
-  loginWithEmail,
-  logoutUser,
-  registerWithEmail,
-  sendPhoneOtp,
-  verifyPhoneOtp
-} from '../services/authService';
-import { getUserProfile, subscribeUserProfile } from '../services/userService';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { isFirebaseConfigured } from '../firebase/env';
 
 const AuthContext = createContext(null);
+
+const loadFirebaseAuth = async () => {
+  const [{ onAuthStateChanged }, { auth }] = await Promise.all([
+    import('firebase/auth'),
+    import('../firebase/config')
+  ]);
+
+  return { auth, onAuthStateChanged };
+};
+const loadAuthService = () => import('../services/authService');
+const loadUserService = () => import('../services/userService');
+
+const runAuthAction = async (actionName, ...args) => {
+  const service = await loadAuthService();
+  return service[actionName](...args);
+};
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -23,14 +25,23 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth) {
+    if (!isFirebaseConfigured) {
       setLoading(false);
       return undefined;
     }
 
     let unsubscribeProfile = null;
+    let unsubscribeAuth = null;
+    let isActive = true;
+    let profileRequestId = 0;
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const handleFirebaseUser = (firebaseUser) => {
+      if (!isActive) {
+        return;
+      }
+
+      const requestId = profileRequestId + 1;
+      profileRequestId = requestId;
       unsubscribeProfile?.();
       unsubscribeProfile = null;
       setCurrentUser(firebaseUser ?? null);
@@ -42,32 +53,83 @@ export const AuthProvider = ({ children }) => {
       }
 
       setLoading(true);
-      unsubscribeProfile = subscribeUserProfile(
-        firebaseUser.uid,
-        (profile) => {
-          setUserProfile(profile);
-          setLoading(false);
-        },
-        (error) => {
+      loadUserService()
+        .then(({ subscribeUserProfile }) => {
+          if (!isActive || requestId !== profileRequestId) {
+            return;
+          }
+
+          unsubscribeProfile = subscribeUserProfile(
+            firebaseUser.uid,
+            (profile) => {
+              if (!isActive || requestId !== profileRequestId) {
+                return;
+              }
+
+              setUserProfile(profile);
+              setLoading(false);
+            },
+            (error) => {
+              if (!isActive || requestId !== profileRequestId) {
+                return;
+              }
+
+              console.warn('WorkLink profile read skipped:', error?.code ?? error?.message ?? error);
+              setUserProfile(null);
+              setLoading(false);
+            }
+          );
+        })
+        .catch((error) => {
+          if (!isActive || requestId !== profileRequestId) {
+            return;
+          }
+
           console.warn('WorkLink profile read skipped:', error?.code ?? error?.message ?? error);
           setUserProfile(null);
           setLoading(false);
+        });
+    };
+
+    loadFirebaseAuth()
+      .then(({ auth, onAuthStateChanged }) => {
+        if (!isActive) {
+          return;
         }
-      );
-    });
+
+        if (!auth) {
+          setLoading(false);
+          return;
+        }
+
+        unsubscribeAuth = onAuthStateChanged(auth, handleFirebaseUser);
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+
+        console.warn('WorkLink auth initialization skipped:', error?.code ?? error?.message ?? error);
+        setCurrentUser(null);
+        setUserProfile(null);
+        setLoading(false);
+      });
 
     return () => {
+      isActive = false;
+      profileRequestId += 1;
       unsubscribeProfile?.();
-      unsubscribe();
+      unsubscribeAuth?.();
     };
   }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (!currentUser) {
       return null;
     }
 
     try {
+      const { getUserProfile } = await loadUserService();
       const profile = await getUserProfile(currentUser.uid);
       setUserProfile(profile);
       return profile;
@@ -76,7 +138,7 @@ export const AuthProvider = ({ children }) => {
       setUserProfile(null);
       return null;
     }
-  };
+  }, [currentUser]);
 
   const value = useMemo(
     () => ({
@@ -84,27 +146,27 @@ export const AuthProvider = ({ children }) => {
       userProfile,
       loading,
       isFirebaseConfigured,
-      loginWithEmail,
-      loginWithGoogle: beginGoogleLogin,
-      loginWithApple: beginAppleLogin,
-      registerWithEmail,
-      sendPhoneOtp,
-      verifyPhoneOtp,
-      consumeRedirectAuthResult,
+      loginWithEmail: (...args) => runAuthAction('loginWithEmail', ...args),
+      loginWithGoogle: (...args) => runAuthAction('beginGoogleLogin', ...args),
+      loginWithApple: (...args) => runAuthAction('beginAppleLogin', ...args),
+      registerWithEmail: (...args) => runAuthAction('registerWithEmail', ...args),
+      sendPhoneOtp: (...args) => runAuthAction('sendPhoneOtp', ...args),
+      verifyPhoneOtp: (...args) => runAuthAction('verifyPhoneOtp', ...args),
+      consumeRedirectAuthResult: (...args) => runAuthAction('consumeRedirectAuthResult', ...args),
       createBaseUserProfile: async (...args) => {
-        const profile = await createBaseUserProfile(...args);
+        const profile = await runAuthAction('createBaseUserProfile', ...args);
         await refreshProfile();
         return profile;
       },
       createOrUpdateUserProfile: async (...args) => {
-        const profile = await createOrUpdateUserProfile(...args);
+        const profile = await runAuthAction('createOrUpdateUserProfile', ...args);
         await refreshProfile();
         return profile;
       },
-      logout: logoutUser,
+      logout: (...args) => runAuthAction('logoutUser', ...args),
       refreshProfile
     }),
-    [currentUser, userProfile, loading]
+    [currentUser, userProfile, loading, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
